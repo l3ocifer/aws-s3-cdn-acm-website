@@ -12,7 +12,7 @@ install_requirements() {
     local os=$(uname -s | tr '[:upper:]' '[:lower:]')
     local arch=$(uname -m)
 
-    for cmd in aws terraform npm npx jq git; do
+    for cmd in aws terraform npm npx jq git node sharp; do
         if ! command_exists $cmd; then
             case $cmd in
                 aws)
@@ -24,13 +24,14 @@ install_requirements() {
                     curl "https://releases.hashicorp.com/terraform/${tf_version}/terraform_${tf_version}_${os}_amd64.zip" -o terraform.zip
                     unzip terraform.zip && sudo mv terraform /usr/local/bin/ && rm terraform.zip
                     ;;
-                npm|npx)
+                npm|npx|node)
                     if command_exists apt-get; then
                         sudo apt-get update && sudo apt-get install -y nodejs npm
                     elif command_exists brew; then
                         brew install node
                     else
-                        error "Please install Node.js and npm manually and run this script again."
+                        echo "Please install Node.js and npm manually and run this script again." >&2
+                        exit 1
                     fi
                     ;;
                 jq|git)
@@ -39,8 +40,12 @@ install_requirements() {
                     elif command_exists brew; then
                         brew install $cmd
                     else
-                        error "Please install $cmd manually and run this script again."
+                        echo "Please install $cmd manually and run this script again." >&2
+                        exit 1
                     fi
+                    ;;
+                sharp)
+                    npm install -g sharp-cli
                     ;;
             esac
         fi

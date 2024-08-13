@@ -1,0 +1,183 @@
+#!/bin/bash
+set -euo pipefail
+
+handle_content_file() {
+    if [ ! -f .content ]; then
+        echo "No .content file found. Please choose an option:"
+        echo "1. Enter content manually"
+        echo "2. Provide path to content file"
+        echo "3. Skip (use default content)"
+        read -p "Enter your choice (1-3): " content_choice
+
+        case $content_choice in
+            1)
+                read -p "Enter your business description: " business_description
+                read -p "Enter your contact info: " contact_info
+                echo -e "$business_description\n\nContact Info:\n$contact_info" > .content
+                ;;
+            2)
+                read -p "Enter the path to your content file: " content_file_path
+                [ -f "$content_file_path" ] && cp "$content_file_path" .content || { echo "Content file not found at $content_file_path" >&2; exit 1; }
+                ;;
+            3)
+                echo "Hello World! This is $DOMAIN_NAME" > .content
+                ;;
+            *)
+                echo "Invalid choice. Please run the script again and select a valid option." >&2
+                exit 1
+                ;;
+        esac
+    fi
+}
+
+handle_logo_file() {
+    if [ ! -f .logo ]; then
+        echo "No .logo file found. Please choose an option:"
+        echo "1. Provide path to logo image"
+        echo "2. Provide URL to logo image"
+        echo "3. Skip (use default logo)"
+        read -p "Enter your choice (1-3): " logo_choice
+
+        case $logo_choice in
+            1)
+                read -p "Enter the path to your logo image: " logo_path
+                if [ -f "$logo_path" ]; then
+                    cp "$logo_path" .logo
+                    echo "$logo_path" > .logo
+                else
+                    echo "Logo file not found at $logo_path. Using default logo." >&2
+                    echo "default" > .logo
+                fi
+                ;;
+            2)
+                read -p "Enter the URL of your logo image: " logo_url
+                echo "$logo_url" > .logo
+                ;;
+            3)
+                echo "default" > .logo
+                ;;
+            *)
+                echo "Invalid choice. Using default logo." >&2
+                echo "default" > .logo
+                ;;
+        esac
+    fi
+}
+
+setup_nextjs_app() {
+    if [ ! -d "next-app" ]; then
+        npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*"
+    fi
+
+    cd next-app
+
+    # Update package.json scripts
+    npm pkg set scripts.build="next build && next export"
+
+    handle_content_file
+    handle_logo_file
+
+    jq -n --arg content "$(cat ../.content)" '[{"title": "Welcome", "content": $content}]' > src/content.json
+
+    # Update src/app/layout.tsx
+    cat << EOF > src/app/layout.tsx
+import './globals.css'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
+  title: '${DOMAIN_NAME}',
+  description: 'Welcome to ${DOMAIN_NAME}',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
+      <body className={inter.className}>{children}</body>
+    </html>
+  )
+}
+EOF
+
+    # Update src/app/page.tsx
+    cat << EOF > src/app/page.tsx
+import Image from 'next/image'
+import content from '../content.json'
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
+        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+          Welcome to&nbsp;
+          <code className="font-mono font-bold">${DOMAIN_NAME}</code>
+        </p>
+        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
+
+            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
+            href="https://${DOMAIN_NAME}"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            By{' '}
+            <Image
+              src="/logo.png"
+              alt="${DOMAIN_NAME} Logo"
+              className="dark:invert"
+              width={100}
+              height={24}
+              priority
+            />
+          </a>
+        </div>
+      </div>
+
+      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
+        <h1 className="text-4xl font-bold">Welcome to ${DOMAIN_NAME}</h1>
+      </div>
+
+      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
+        {content.map((item, index) => (
+          <div key={index} className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
+            <h2 className="mb-3 text-2xl font-semibold">{item.title}</h2>
+            <p className="m-0 max-w-[30ch] text-sm opacity-50">{item.content}</p>
+          </div>
+        ))}
+      </div>
+    </main>
+  )
+}
+EOF
+
+    # Update favicon and other icons
+    if [ "$(cat ../.logo)" != "default" ]; then
+        logo_path=$(cat ../.logo)
+        if [[ $logo_path == http* ]]; then
+            curl -o src/app/icon.png $logo_path
+        else
+            cp $logo_path src/app/icon.png
+        fi
+        npx sharp -i src/app/icon.png -o public/favicon.ico --format ico
+        npx sharp -i src/app/icon.png -o public/logo.png resize 100 24
+        npx sharp -i src/app/icon.png -o public/apple-touch-icon.png resize 180 180
+        for size in 16 32 192 512; do
+            npx sharp -i src/app/icon.png -o public/icon-${size}x${size}.png resize $size $size
+        done
+    else
+        cp src/app/favicon.ico public/favicon.ico
+        cp src/app/favicon.ico public/logo.png
+    fi
+
+    npm run build
+}
+
+setup_nextjs_app

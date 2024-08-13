@@ -4,3 +4,7 @@
 *.tfstate
 *.tfstate.backup
 .env
+# Next.js
+next-app/.next/
+next-app/out/
+next-app/node_modules/

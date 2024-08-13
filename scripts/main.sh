@@ -13,21 +13,12 @@ log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"; }
 error() { echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2; exit 1; }
 warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"; }
 
-# Function to get or prompt for domain name
+# Function to get domain name
 get_domain_name() {
-    if [ -f .domain ]; then
-        DOMAIN_NAME=$(cat .domain)
-    elif [ $# -ge 1 ]; then
-        DOMAIN_NAME="$1"
-    else
-        read -p "Enter the domain name: " DOMAIN_NAME
+    if [ ! -f .domain ]; then
+        error "Domain file (.domain) not found. Please run createwebsite.sh first."
     fi
-
-    if [ -z "$DOMAIN_NAME" ]; then
-        error "Domain name is required."
-    fi
-
-    echo "$DOMAIN_NAME" > .domain
+    DOMAIN_NAME=$(cat .domain)
     export DOMAIN_NAME
 }
 
@@ -37,20 +28,19 @@ if [ "${1:-}" = "td" ]; then
     DESTROY=true
 fi
 
-get_domain_name "${2:-}"
+get_domain_name
 
 # Cleanup function
 cleanup() {
     echo "Cleaning up..."
-    rm -f .domain
-    rm -rf terraform/.terraform terraform/terraform.tfstate*
+    rm -f terraform/.terraform/terraform.tfstate*
 }
 
 # Set trap for cleanup
 trap cleanup EXIT
 
 # Source and execute the individual modules
-for module in install_requirements setup_aws setup_terraform setup_react_app deploy_website; do
+for module in install_requirements setup_aws setup_terraform setup_site deploy_website; do
     if [ ! -f "./scripts/${module}.sh" ]; then
         error "Required script not found: ./scripts/${module}.sh"
     fi
@@ -74,13 +64,5 @@ else
     log "Please allow some time for the DNS changes to propagate."
     (cd terraform && terraform output name_servers)
 
-    # Initialize Git repository for the project if it doesn't exist
-    if [ ! -d ".git" ]; then
-        log "Initializing Git repository for the project..."
-        git init
-        git add .
-        git commit -m "Initial commit for ${DOMAIN_NAME}"
-    fi
-
-    log "Project setup complete. You can now push this to a private repository."
+    log "Project setup complete."
 fi
