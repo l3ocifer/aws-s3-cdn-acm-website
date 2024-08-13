@@ -26,7 +26,7 @@ get_domain_name() {
     if [ -f .domain ]; then
         DOMAIN_NAME=$(cat .domain)
     else
-        read -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
+        read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
         echo "$DOMAIN_NAME" > .domain
     fi
     REPO_NAME=${DOMAIN_NAME%%.*}
@@ -44,11 +44,11 @@ setup_website_repo() {
         use_td=true
     fi
 
-    # Prompt the user to choose an existing or new subdirectory
+    # Prompt the user to choose an existing subdirectory or create a new one
     echo "Choose an existing subdirectory or create a new one:"
     select dir in ~/git/*/ "Create new directory"; do
         if [ "$dir" = "Create new directory" ]; then
-            read -p "Enter a new subdirectory name: " subdir_name
+            read -e -p "Enter a new subdirectory name: " subdir_name
             mkdir -p ~/git/$subdir_name
             cd ~/git/$subdir_name
             break
@@ -70,10 +70,7 @@ setup_website_repo() {
         echo "Creating new repository $REPO_NAME."
         mkdir "$REPO_NAME"
         cd "$REPO_NAME"
-        git clone https://github.com/$GITHUB_USERNAME/$template_repo.git .
-
-        # Check if the clone was successful
-        if [ $? -ne 0 ]; then
+        if ! git clone https://github.com/$GITHUB_USERNAME/$template_repo.git .; then
             echo "Error: Failed to clone the template repository."
             return 1
         fi
@@ -82,7 +79,10 @@ setup_website_repo() {
         git remote remove origin
 
         # Create a new private repository on GitHub for the user's website
-        curl -u $GITHUB_USERNAME:$GITHUB_ACCESS_TOKEN https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'
+        if ! curl -u $GITHUB_USERNAME:$GITHUB_ACCESS_TOKEN https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'; then
+            echo "Error: Failed to create GitHub repository."
+            return 1
+        fi
 
         # Add the new remote
         git remote add origin https://github.com/$GITHUB_USERNAME/$REPO_NAME.git
@@ -108,7 +108,10 @@ setup_website_repo() {
     git commit -m "Update setup for $DOMAIN_NAME" || true  # Commit only if there are changes
 
     # Push changes
-    git push -u origin main
+    if ! git push -u origin HEAD:main --force; then
+        echo "Error: Failed to push changes to GitHub."
+        return 1
+    fi
 
     echo "Website repo setup complete. Your repo is at https://github.com/$GITHUB_USERNAME/$REPO_NAME"
 

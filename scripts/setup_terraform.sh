@@ -9,6 +9,12 @@ setup_terraform_vars() {
         exit 1
     fi
     DOMAIN_NAME=$(cat .domain)
+
+    if [ -z "${HOSTED_ZONE_EXISTS:-}" ] || [ -z "${ACM_CERT_EXISTS:-}" ]; then
+        echo "HOSTED_ZONE_EXISTS and ACM_CERT_EXISTS must be set in the environment." >&2
+        exit 1
+    fi
+
     cat << EOF > terraform/terraform.tfvars
 domain_name = "${DOMAIN_NAME}"
 hosted_zone_exists = ${HOSTED_ZONE_EXISTS}
