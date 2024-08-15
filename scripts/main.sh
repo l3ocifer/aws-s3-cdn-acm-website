@@ -13,11 +13,6 @@ log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"; }
 error() { echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2; exit 1; }
 warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"; }
 
-# Source helper functions
-source scripts/env_checks.sh
-source scripts/git_operations.sh
-source scripts/domain_management.sh
-
 # Function to get domain name
 get_domain_name() {
     if [ ! -f .domain ]; then

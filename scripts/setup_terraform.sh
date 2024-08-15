@@ -2,13 +2,7 @@
 
 set -euo pipefail
 
-source scripts/setup_aws.sh
-
 setup_terraform_vars() {
-    if [ ! -f .domain ]; then
-        echo "Domain file (.domain) not found. Please run the main script first." >&2
-        exit 1
-    fi
     DOMAIN_NAME=$(cat .domain)
 
     check_hosted_zone
@@ -19,9 +13,6 @@ domain_name = "${DOMAIN_NAME}"
 hosted_zone_exists = ${HOSTED_ZONE_EXISTS}
 acm_cert_exists = ${ACM_CERT_EXISTS}
 EOF
-
-    sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/${DOMAIN_NAME}/g" terraform/backend.tf
-    rm -f terraform/backend.tf.bak
 }
 
 setup_backend_bucket() {
