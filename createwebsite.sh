@@ -58,8 +58,11 @@ update_repo_from_template() {
 
     echo "Updating from template repository..."
 
-    # Stash any local changes
-    git stash push -m "$stash_name" || echo "No local changes to save"
+    # Ensure all files are tracked
+    git add -A
+
+    # Stash any local changes, including untracked files
+    git stash push -u -m "$stash_name" || echo "No local changes to save"
 
     # Clean up existing temporary branch if it exists
     if git show-ref --quiet refs/heads/$temp_branch; then
@@ -134,7 +137,11 @@ update_repo_from_template() {
 
     # Apply stashed changes if any
     if git stash list | grep -q "$stash_name"; then
-        git stash pop || echo "Failed to pop stash. Your local changes are in the stash."
+        if ! git stash pop; then
+            echo "Conflicts occurred when applying local changes. Please resolve them manually."
+            echo "Your local changes are in the stash. Use 'git stash show -p' to view them."
+            return 1
+        fi
     fi
 
     echo "Successfully updated from template repository."
@@ -248,7 +255,8 @@ setup_website_repo() {
 
 # Cleanup function
 cleanup() {
-    rm -f "$LAST_DOMAIN_FILE"
+    # Do not remove the LAST_DOMAIN_FILE here to persist it across script runs
+    :
 }
 
 # Set trap for cleanup
