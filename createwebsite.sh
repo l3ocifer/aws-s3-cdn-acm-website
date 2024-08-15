@@ -8,8 +8,8 @@ export AWS_PAGER=""
 # Disable Next.js telemetry
 export NEXT_TELEMETRY_DISABLED=1
 
-# File to store the last used domain
-LAST_DOMAIN_FILE="$HOME/.last_website_domain"
+# Use a session-specific temporary file to store the last domain
+LAST_DOMAIN_FILE="/tmp/last_website_domain_$$.tmp"
 
 # Function to check if a command exists
 command_exists() {
@@ -52,22 +52,41 @@ get_domain_name() {
 update_repo_from_template() {
     local template_repo="website"
     local template_remote="template"
+    local temp_branch="temp_update_branch_$$"  # Use PID to make the branch name unique
+    local original_branch=$(git rev-parse --abbrev-ref HEAD)
 
     echo "Updating from template repository..."
+
+    # Clean up existing temporary branch if it exists
+    if git show-ref --quiet refs/heads/$temp_branch; then
+        echo "Removing existing temporary branch..."
+        git worktree remove -f $temp_branch 2>/dev/null || true
+        git branch -D $temp_branch 2>/dev/null || true
+    fi
 
     # Add template repository as a remote if it doesn't exist
     if ! git remote | grep -q "^${template_remote}$"; then
         git remote add ${template_remote} "https://github.com/$GITHUB_USERNAME/$template_repo.git"
     fi
 
-    # Fetch the latest changes from the template repository
+    # Fetch all branches from the template repository
     git fetch ${template_remote}
 
-    # Create a temporary branch to merge changes
-    git checkout -b temp_update_branch
+    # Determine the default branch of the template repository
+    local template_default_branch=$(git remote show ${template_remote} | grep 'HEAD branch' | cut -d' ' -f5)
 
-    # Merge changes from the template repository, excluding certain files
-    git merge -X theirs --no-commit --no-ff ${template_remote}/main
+    # Create a temporary branch to merge changes
+    git checkout -b $temp_branch
+
+    # Attempt to merge changes from the template repository's default branch
+    if ! git merge -X theirs --no-commit --no-ff "${template_remote}/${template_default_branch}"; then
+        echo "Failed to merge changes from template. Aborting merge and returning to original state."
+        git merge --abort
+        git checkout $original_branch
+        git branch -D $temp_branch
+        git remote remove ${template_remote}
+        return 1
+    fi
 
     # Remove files that should not be updated
     git reset HEAD .domain .content .logo
@@ -89,15 +108,23 @@ update_repo_from_template() {
     # Commit the changes
     git commit -m "Update from template repository"
 
-    # Switch back to the main branch and merge the changes
-    git checkout master
-    git merge --no-ff temp_update_branch -m "Merge template updates"
+    # Switch back to the original branch and merge the changes
+    git checkout $original_branch
+    if ! git merge --no-ff $temp_branch -m "Merge template updates"; then
+        echo "Failed to merge changes into the original branch. Please resolve conflicts manually."
+        git merge --abort
+        echo "Changes from the template are in the '$temp_branch' branch."
+        git remote remove ${template_remote}
+        return 1
+    fi
 
     # Delete the temporary branch
-    git branch -d temp_update_branch
+    git branch -D $temp_branch
 
     # Remove the template remote
     git remote remove ${template_remote}
+
+    echo "Successfully updated from template repository."
 }
 
 # Function to setup the website repo
@@ -205,6 +232,14 @@ setup_website_repo() {
         exit 1
     fi
 }
+
+# Cleanup function
+cleanup() {
+    rm -f "$LAST_DOMAIN_FILE"
+}
+
+# Set trap for cleanup
+trap cleanup EXIT
 
 # Run the function with command line argument
 setup_website_repo "${1:-}"
