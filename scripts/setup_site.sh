@@ -58,7 +58,7 @@ export default function RootLayout({
 EOF
 
     # Update src/app/page.tsx
-    cat << EOF > src/app/page.tsx
+    cat << 'EOF' > src/app/page.tsx
 import Image from 'next/image'
 import content from '../content.json'
 
@@ -106,6 +106,9 @@ export default function Home() {
   )
 }
 EOF
+
+    # Replace placeholders in page.tsx
+    sed -i'' "s/\${DOMAIN_NAME}/$DOMAIN_NAME/g" src/app/page.tsx
 
     # Update favicon and other icons
     if [ "$(cat ../.logo)" != "default" ]; then
