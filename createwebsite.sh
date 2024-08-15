@@ -67,8 +67,7 @@ update_repo_from_template() {
     # Clean up existing temporary branch if it exists
     if git show-ref --quiet refs/heads/$temp_branch; then
         echo "Removing existing temporary branch..."
-        git worktree remove -f $temp_branch 2>/dev/null || true
-        git branch -D $temp_branch 2>/dev/null || true
+        git branch -D $temp_branch
     fi
 
     # Add template repository as a remote if it doesn't exist
@@ -83,25 +82,9 @@ update_repo_from_template() {
     local template_default_branch=$(git remote show ${template_remote} | grep 'HEAD branch' | cut -d' ' -f5)
 
     # Create a temporary branch to merge changes
-    git checkout -b $temp_branch
+    git checkout -b $temp_branch ${template_remote}/${template_default_branch}
 
-    # Attempt to merge changes from the template repository's default branch
-    if ! git merge -X theirs --allow-unrelated-histories --no-commit --no-ff "${template_remote}/${template_default_branch}"; then
-        echo "Failed to merge changes from template. Manual intervention may be required."
-        echo "You can find the template changes in the '$temp_branch' branch."
-        git merge --abort || true
-        git checkout $original_branch
-        if git stash list | grep -q "$stash_name"; then
-            git stash pop || echo "Failed to pop stash. Your local changes are in the stash."
-        fi
-        return 1
-    fi
-
-    # Remove files that should not be updated
-    git reset HEAD .domain .content .logo
-    git checkout -- .domain .content .logo
-
-    # Update specific files with customized content
+    # Apply custom changes
     if [ -f terraform/backend.tf ]; then
         sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
     else
@@ -115,17 +98,17 @@ update_repo_from_template() {
     fi
 
     # Commit the changes
+    git add -A
     git commit -m "Update from template repository"
 
-    # Switch back to the original branch and merge the changes
+    # Switch back to the original branch
     git checkout $original_branch
+
+    # Merge changes from the temporary branch
     if ! git merge --no-ff $temp_branch -m "Merge template updates"; then
         echo "Failed to merge changes into the original branch. Please resolve conflicts manually."
         echo "You can find the template changes in the '$temp_branch' branch."
         git merge --abort || true
-        if git stash list | grep -q "$stash_name"; then
-            git stash pop || echo "Failed to pop stash. Your local changes are in the stash."
-        fi
         return 1
     fi
 
@@ -137,11 +120,12 @@ update_repo_from_template() {
 
     # Apply stashed changes if any
     if git stash list | grep -q "$stash_name"; then
-        if ! git stash pop; then
+        if ! git stash apply stash^{/$stash_name}; then
             echo "Conflicts occurred when applying local changes. Please resolve them manually."
-            echo "Your local changes are in the stash. Use 'git stash show -p' to view them."
+            echo "Your local changes are in the stash. Use 'git stash show -p stash^{/$stash_name}' to view them."
             return 1
         fi
+        git stash drop stash@{0}
     fi
 
     echo "Successfully updated from template repository."
