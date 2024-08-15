@@ -8,9 +8,6 @@ export AWS_PAGER=""
 # Disable Next.js telemetry
 export NEXT_TELEMETRY_DISABLED=1
 
-# Use a session-specific temporary file to store the last domain
-LAST_DOMAIN_FILE="/tmp/last_website_domain_$$.tmp"
-
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -32,59 +29,62 @@ fi
 
 # Function to get or prompt for domain name
 get_domain_name() {
-    if [ -f "$LAST_DOMAIN_FILE" ]; then
-        LAST_DOMAIN=$(cat "$LAST_DOMAIN_FILE")
-        read -p "Use the last domain ($LAST_DOMAIN)? (y/n): " use_last
+    if [ -n "${LAST_WEBSITE_DOMAIN:-}" ]; then
+        read -p "Use the last domain ($LAST_WEBSITE_DOMAIN)? (y/n): " use_last
         if [[ $use_last =~ ^[Yy]$ ]]; then
-            DOMAIN_NAME=$LAST_DOMAIN
+            DOMAIN_NAME=$LAST_WEBSITE_DOMAIN
         else
             read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
         fi
     else
         read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
     fi
-    echo "$DOMAIN_NAME" > "$LAST_DOMAIN_FILE"
+    export LAST_WEBSITE_DOMAIN=$DOMAIN_NAME
     REPO_NAME=${DOMAIN_NAME%%.*}
     export DOMAIN_NAME REPO_NAME
+}
+
+# Function to get or prompt for directory
+get_directory() {
+    if [ -n "${LAST_WEBSITE_DIR:-}" ]; then
+        read -p "Use the last directory ($LAST_WEBSITE_DIR)? (y/n): " use_last_dir
+        if [[ $use_last_dir =~ ^[Yy]$ ]]; then
+            cd "$LAST_WEBSITE_DIR"
+            return
+        fi
+    fi
+
+    echo "Choose an existing subdirectory or create a new one:"
+    select dir in ~/git/*/ "Create new directory"; do
+        if [ "$dir" = "Create new directory" ]; then
+            read -e -p "Enter a new subdirectory name: " subdir_name
+            mkdir -p ~/git/$subdir_name
+            cd ~/git/$subdir_name
+            break
+        elif [ -d "$dir" ]; then
+            cd "$dir"
+            break
+        else
+            echo "Invalid selection" >&2
+            exit 1
+        fi
+    done
+
+    export LAST_WEBSITE_DIR=$PWD
 }
 
 # Function to update repo with latest template changes
 update_repo_from_template() {
     local template_repo="website"
-    local template_remote="template"
-    local temp_branch="temp_update_branch_$$"  # Use PID to make the branch name unique
-    local original_branch=$(git rev-parse --abbrev-ref HEAD)
-    local stash_name="temp_stash_$$"
+    local temp_dir=$(mktemp -d)
 
     echo "Updating from template repository..."
+    git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" "$temp_dir"
 
-    # Ensure all files are tracked
-    git add -A
+    # Copy files from template, excluding .git, .domain, .content, and .logo
+    rsync -av --exclude='.git' --exclude='.domain' --exclude='.content' --exclude='.logo' "$temp_dir/" .
 
-    # Stash any local changes, including untracked files
-    git stash push -u -m "$stash_name" || echo "No local changes to save"
-
-    # Clean up existing temporary branch if it exists
-    if git show-ref --quiet refs/heads/$temp_branch; then
-        echo "Removing existing temporary branch..."
-        git branch -D $temp_branch
-    fi
-
-    # Add template repository as a remote if it doesn't exist
-    if ! git remote | grep -q "^${template_remote}$"; then
-        git remote add ${template_remote} "https://github.com/$GITHUB_USERNAME/$template_repo.git"
-    fi
-
-    # Fetch all branches from the template repository
-    git fetch ${template_remote}
-
-    # Determine the default branch of the template repository
-    local template_default_branch=$(git remote show ${template_remote} | grep 'HEAD branch' | cut -d' ' -f5)
-
-    # Create a temporary branch to merge changes
-    git checkout -b $temp_branch ${template_remote}/${template_default_branch}
-
-    # Apply custom changes
+    # Update specific files with customized content
     if [ -f terraform/backend.tf ]; then
         sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
     else
@@ -97,43 +97,7 @@ update_repo_from_template() {
         echo "Warning: scripts/setup_terraform.sh not found. Skipping customization."
     fi
 
-    # Commit the changes
-    git add -A
-    git commit -m "Update from template repository"
-
-    # Switch back to the original branch
-    git checkout $original_branch
-
-    # Attempt to merge changes from the temporary branch, allowing unrelated histories
-    if ! git merge --allow-unrelated-histories --no-ff $temp_branch -m "Merge template updates"; then
-        echo "Conflicts occurred when merging template changes. Please resolve them manually."
-        echo "Steps to resolve conflicts:"
-        echo "1. Run 'git status' to see which files have conflicts."
-        echo "2. Edit the conflicting files to resolve the conflicts."
-        echo "3. After resolving conflicts, run 'git add <conflicting-file>' for each resolved file."
-        echo "4. Run 'git commit' to complete the merge."
-        echo "5. After resolving conflicts, run the script again."
-        return 1
-    fi
-
-    # Delete the temporary branch
-    git branch -D $temp_branch
-
-    # Remove the template remote
-    git remote remove ${template_remote}
-
-    # Apply stashed changes if any
-    if git stash list | grep -q "$stash_name"; then
-        if ! git stash apply stash^{/$stash_name}; then
-            echo "Conflicts occurred when applying local changes. Please resolve them manually."
-            echo "Your local changes are in the stash. Use 'git stash show -p stash^{/$stash_name}' to view them."
-            echo "After resolving conflicts, run 'git stash drop stash@{0}' to remove the stash."
-            return 1
-        fi
-        git stash drop stash@{0}
-    fi
-
-    echo "Successfully updated from template repository."
+    rm -rf "$temp_dir"
 }
 
 # Function to setup the website repo
@@ -145,34 +109,26 @@ setup_website_repo() {
         use_td=true
     fi
 
+    get_directory
     get_domain_name
 
-    # Check if we're already in the correct directory
-    if [ "$(basename "$PWD")" != "$REPO_NAME" ]; then
-        # If not, navigate to the correct directory or create it
-        if [ -d "$HOME/git/$REPO_NAME" ]; then
-            cd "$HOME/git/$REPO_NAME"
-        else
-            mkdir -p "$HOME/git/$REPO_NAME"
-            cd "$HOME/git/$REPO_NAME"
-        fi
-    fi
-
-    if [ -d .git ]; then
+    if [ -d "$REPO_NAME" ]; then
         echo "Repository $REPO_NAME already exists locally. Updating..."
+        cd "$REPO_NAME"
         git fetch origin
         git reset --hard origin/master
         update_repo_from_template
     else
         echo "Cloning repository $REPO_NAME..."
-        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" . 2>/dev/null; then
+        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" 2>/dev/null; then
             echo "Repository doesn't exist. Cloning template repository..."
-            if ! git clone "https://github.com/$GITHUB_USERNAME/website.git" .; then
+            if ! git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_NAME"; then
                 echo "Error: Failed to clone the template repository." >&2
                 exit 1
             fi
-            update_repo_from_template
         fi
+        cd "$REPO_NAME"
+        update_repo_from_template
     fi
 
     # Ensure remote is set correctly
@@ -241,15 +197,6 @@ setup_website_repo() {
         exit 1
     fi
 }
-
-# Cleanup function
-cleanup() {
-    # Do not remove the LAST_DOMAIN_FILE here to persist it across script runs
-    :
-}
-
-# Set trap for cleanup
-trap cleanup EXIT
 
 # Run the function with command line argument
 setup_website_repo "${1:-}"
