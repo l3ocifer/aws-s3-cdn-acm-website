@@ -2,81 +2,34 @@
 set -euo pipefail
 
 handle_content_file() {
-    if [ ! -f .content ]; then
-        echo "No .content file found. Please choose an option:"
-        echo "1. Enter content manually"
-        echo "2. Provide path to content file"
-        echo "3. Skip (use default content)"
-        read -p "Enter your choice (1-3): " content_choice
-
-        case $content_choice in
-            1)
-                read -p "Enter your business description: " business_description
-                read -p "Enter your contact info: " contact_info
-                echo -e "$business_description\n\nContact Info:\n$contact_info" > .content
-                ;;
-            2)
-                read -p "Enter the path to your content file: " content_file_path
-                [ -f "$content_file_path" ] && cp "$content_file_path" .content || { echo "Content file not found at $content_file_path" >&2; exit 1; }
-                ;;
-            3)
-                echo "Hello World! This is $DOMAIN_NAME" > .content
-                ;;
-            *)
-                echo "Invalid choice. Please run the script again and select a valid option." >&2
-                exit 1
-                ;;
-        esac
+    if [ ! -f ../.content ]; then
+        echo "No .content file found. Creating a default one."
+        echo "Welcome to $DOMAIN_NAME" > ../.content
     fi
 }
 
 handle_logo_file() {
-    if [ ! -f .logo ]; then
-        echo "No .logo file found. Please choose an option:"
-        echo "1. Provide path to logo image"
-        echo "2. Provide URL to logo image"
-        echo "3. Skip (use default logo)"
-        read -p "Enter your choice (1-3): " logo_choice
-
-        case $logo_choice in
-            1)
-                read -p "Enter the path to your logo image: " logo_path
-                if [ -f "$logo_path" ]; then
-                    cp "$logo_path" .logo
-                    echo "$logo_path" > .logo
-                else
-                    echo "Logo file not found at $logo_path. Using default logo." >&2
-                    echo "default" > .logo
-                fi
-                ;;
-            2)
-                read -p "Enter the URL of your logo image: " logo_url
-                echo "$logo_url" > .logo
-                ;;
-            3)
-                echo "default" > .logo
-                ;;
-            *)
-                echo "Invalid choice. Using default logo." >&2
-                echo "default" > .logo
-                ;;
-        esac
+    if [ ! -f ../.logo ]; then
+        echo "No .logo file found. Using default logo."
+        echo "default" > ../.logo
     fi
 }
 
 setup_nextjs_app() {
     if [ ! -d "next-app" ]; then
-        npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*"
+        echo "Creating Next.js app..."
+        npx --yes create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git
     fi
 
     cd next-app
 
     # Update package.json scripts
-    npm pkg set scripts.build="next build && next export"
+    npm pkg set scripts.build="next build"
 
     handle_content_file
     handle_logo_file
 
+    mkdir -p src
     jq -n --arg content "$(cat ../.content)" '[{"title": "Welcome", "content": $content}]' > src/content.json
 
     # Update src/app/layout.tsx
@@ -98,10 +51,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      </head>
       <body className={inter.className}>{children}</body>
     </html>
   )
@@ -122,7 +71,7 @@ export default function Home() {
           <code className="font-mono font-bold">${DOMAIN_NAME}</code>
         </p>
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-
+          <a
             className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
             href="https://${DOMAIN_NAME}"
             target="_blank"
@@ -148,8 +97,8 @@ export default function Home() {
       <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
         {content.map((item, index) => (
           <div key={index} className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
-            <h2 className="mb-3 text-2xl font-semibold">{item.title}</h2>
-            <p className="m-0 max-w-[30ch] text-sm opacity-50">{item.content}</p>
+            <h2 className={\`mb-3 text-2xl font-semibold\`}>{item.title}</h2>
+            <p className={\`m-0 max-w-[30ch] text-sm opacity-50\`}>{item.content}</p>
           </div>
         ))}
       </div>
@@ -162,19 +111,18 @@ EOF
     if [ "$(cat ../.logo)" != "default" ]; then
         logo_path=$(cat ../.logo)
         if [[ $logo_path == http* ]]; then
-            curl -o src/app/icon.png $logo_path
+            curl -o public/icon.png $logo_path
         else
-            cp $logo_path src/app/icon.png
+            cp $logo_path public/icon.png
         fi
-        npx sharp -i src/app/icon.png -o public/favicon.ico --format ico
-        npx sharp -i src/app/icon.png -o public/logo.png resize 100 24
-        npx sharp -i src/app/icon.png -o public/apple-touch-icon.png resize 180 180
+        npx sharp -i public/icon.png -o public/favicon.ico --format ico
+        npx sharp -i public/icon.png -o public/logo.png resize 100 24
+        npx sharp -i public/icon.png -o public/apple-touch-icon.png resize 180 180
         for size in 16 32 192 512; do
-            npx sharp -i src/app/icon.png -o public/icon-${size}x${size}.png resize $size $size
+            npx sharp -i public/icon.png -o public/icon-${size}x${size}.png resize $size $size
         done
     else
-        cp src/app/favicon.ico public/favicon.ico
-        cp src/app/favicon.ico public/logo.png
+        cp public/vercel.svg public/logo.png
     fi
 
     npm run build

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export NEXT_TELEMETRY_DISABLED=1
+
 # Disable the AWS CLI pager
 export AWS_PAGER=""
 
@@ -26,20 +28,52 @@ fi
 
 # Function to get or prompt for domain name
 get_domain_name() {
-    if [ -f .domain ]; then
-        DOMAIN_NAME=$(cat .domain)
+    if [ -n "${LAST_WEBSITE_REPO:-}" ]; then
+        read -p "Use the last repo ($LAST_WEBSITE_REPO)? (y/n): " use_last
+        if [[ $use_last =~ ^[Yy]$ ]]; then
+            DOMAIN_NAME=$LAST_WEBSITE_REPO
+        else
+            read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
+        fi
     else
         read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
-        echo "$DOMAIN_NAME" > .domain
     fi
+    echo "$DOMAIN_NAME" > .domain
     REPO_NAME=${DOMAIN_NAME%%.*}
-    export DOMAIN_NAME REPO_NAME
+    export DOMAIN_NAME REPO_NAME LAST_WEBSITE_REPO=$DOMAIN_NAME
+}
+
+# Function to update repo with latest template changes
+update_repo_from_template() {
+    local template_repo="website"
+    local temp_dir=$(mktemp -d)
+
+    echo "Updating from template repository..."
+    git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" "$temp_dir"
+
+    # Copy files from template, excluding .git, .domain, .content, and .logo
+    rsync -av --exclude='.git' --exclude='.domain' --exclude='.content' --exclude='.logo' "$temp_dir/" .
+
+    # Update specific files with customized content
+    if [ -f terraform/backend.tf ]; then
+        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
+    else
+        echo "Warning: terraform/backend.tf not found. Skipping customization."
+    fi
+
+    if [ -f scripts/setup_terraform.sh ]; then
+        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" scripts/setup_terraform.sh
+    else
+        echo "Warning: scripts/setup_terraform.sh not found. Skipping customization."
+    fi
+
+    rm -rf "$temp_dir"
 }
 
 # Function to setup the website repo
 setup_website_repo() {
-    local template_repo="website"
     local use_td=false
+    local template_repo="website"
 
     # Check if 'td' argument is provided
     if [ "${1:-}" = "td" ]; then
@@ -66,24 +100,31 @@ setup_website_repo() {
     get_domain_name
 
     if [ -d "$REPO_NAME" ]; then
-        echo "Repository $REPO_NAME already exists locally. Updating..."
-        cd "$REPO_NAME"
-        git fetch origin
-        git reset --hard origin/master
-    else
-        echo "Cloning repository $REPO_NAME..."
-        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" 2>/dev/null; then
-            echo "Repository doesn't exist. Cloning template repository..."
-            if ! git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" "$REPO_NAME"; then
-                echo "Error: Failed to clone the template repository." >&2
-                exit 1
-            fi
+        echo "Directory $REPO_NAME already exists locally. Checking GitHub..."
+        if curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then
+            echo "Repository exists on GitHub. Updating..."
+            cd "$REPO_NAME"
+            git fetch origin
+            git reset --hard origin/master
+            update_repo_from_template
+        else
+            echo "Repository doesn't exist on GitHub. Cleaning directory and setting up as new..."
+            cd "$REPO_NAME"
+            rm -rf * .[!.]* ..?*
+            git init
+            update_repo_from_template
         fi
+    else
+        echo "Creating new repository $REPO_NAME..."
+        mkdir "$REPO_NAME"
         cd "$REPO_NAME"
+        git init
+        update_repo_from_template
     fi
 
     # Ensure remote is set correctly
-    git remote set-url origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+    git remote remove origin 2>/dev/null || true
+    git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
 
     # Ensure .domain file exists and is up to date
     echo "$DOMAIN_NAME" > .domain
@@ -102,17 +143,16 @@ setup_website_repo() {
 
     # Commit any changes
     git add .
-    git commit -m "Update setup for $DOMAIN_NAME" || true  # Commit only if there are changes
+    git commit -m "Initial setup for $DOMAIN_NAME" || true  # Commit only if there are changes
 
-    # Get the current branch name
-    current_branch=$(git rev-parse --abbrev-ref HEAD)
-    echo "Current branch: $current_branch"
-
-    # Pull changes from remote
-    git pull origin $current_branch --rebase
+    # Create repository on GitHub if it doesn't exist
+    if ! curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then
+        echo "Creating new repository on GitHub..."
+        curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'
+    fi
 
     # Push changes
-    if ! git push -u origin "$current_branch"; then
+    if ! git push -u origin master --force; then
         echo "Error: Failed to push changes to GitHub." >&2
         echo "Current directory: $(pwd)" >&2
         echo "Git status:" >&2
@@ -145,6 +185,5 @@ setup_website_repo() {
         exit 1
     fi
 }
-
 # Run the function with command line argument
 setup_website_repo "${1:-}"
