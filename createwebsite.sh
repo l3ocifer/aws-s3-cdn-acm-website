@@ -2,12 +2,6 @@
 
 set -euo pipefail
 
-# Disable the AWS CLI pager
-export AWS_PAGER=""
-
-# Disable Next.js telemetry
-export NEXT_TELEMETRY_DISABLED=1
-
 # Check for required commands
 for cmd in git curl aws; do
     if ! command -v $cmd &> /dev/null; then
@@ -46,17 +40,19 @@ get_domain_and_repo() {
     export DOMAIN_NAME REPO_NAME REPO_PATH
 }
 
-# Function to clone the website template repository
-clone_website_repo() {
+# Function to setup or update the website repository
+setup_or_update_repo() {
     if [ -d "$REPO_PATH" ]; then
-        echo "Error: Directory $REPO_PATH already exists. Please choose a different path or remove the existing directory." >&2
-        exit 1
+        echo "Repository already exists. Updating..."
+        cd "$REPO_PATH"
+        git fetch origin
+        git reset --hard origin/master
+    else
+        echo "Cloning website template repository..."
+        mkdir -p "$REPO_PATH"
+        git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_PATH"
+        cd "$REPO_PATH"
     fi
-
-    echo "Cloning website template repository..."
-    mkdir -p "$REPO_PATH"
-    git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_PATH"
-    cd "$REPO_PATH"
 
     # Make scripts executable
     chmod +x scripts/*.sh
@@ -77,13 +73,13 @@ clone_website_repo() {
 
     # Commit and push changes
     git add .
-    git commit -m "Initial setup for $DOMAIN_NAME"
+    git commit -m "Update setup for $DOMAIN_NAME" || true
     git push -u origin master
 }
 
 # Main execution
 get_domain_and_repo
-clone_website_repo
+setup_or_update_repo
 
 # Run the main setup script
 if [ -f "scripts/main.sh" ]; then
