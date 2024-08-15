@@ -2,8 +2,14 @@
 
 set -euo pipefail
 
+# Disable the AWS CLI pager
+export AWS_PAGER=""
+
+# Disable Next.js telemetry
+export NEXT_TELEMETRY_DISABLED=1
+
 # Check for required commands
-for cmd in git curl; do
+for cmd in git curl aws; do
     if ! command -v $cmd &> /dev/null; then
         echo "Error: $cmd is not installed. Please install it and try again." >&2
         exit 1
@@ -51,6 +57,9 @@ clone_website_repo() {
     mkdir -p "$REPO_PATH"
     git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_PATH"
     cd "$REPO_PATH"
+
+    # Make scripts executable
+    chmod +x scripts/*.sh
 
     # Create new repository on GitHub if it doesn't exist
     if ! curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then

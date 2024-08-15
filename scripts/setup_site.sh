@@ -18,7 +18,7 @@ handle_logo_file() {
 setup_nextjs_app() {
     if [ ! -d "next-app" ]; then
         echo "Creating Next.js app..."
-        npx --yes create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git
+        npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
     fi
 
     cd next-app
@@ -71,7 +71,7 @@ export default function Home() {
           <code className="font-mono font-bold">${DOMAIN_NAME}</code>
         </p>
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
+
             className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
             href="https://${DOMAIN_NAME}"
             target="_blank"

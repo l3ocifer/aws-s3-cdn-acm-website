@@ -17,16 +17,21 @@ install_requirements() {
             case $cmd in
                 aws)
                     curl "https://awscli.amazonaws.com/awscli-exe-${os}-${arch}.zip" -o "awscliv2.zip"
-                    unzip awscliv2.zip && sudo ./aws/install && rm -rf aws awscliv2.zip
+                    unzip awscliv2.zip
+                    sudo ./aws/install --update
+                    rm -rf aws awscliv2.zip
                     ;;
                 terraform)
                     local tf_version="1.5.7"
                     curl "https://releases.hashicorp.com/terraform/${tf_version}/terraform_${tf_version}_${os}_amd64.zip" -o terraform.zip
-                    unzip terraform.zip && sudo mv terraform /usr/local/bin/ && rm terraform.zip
+                    unzip terraform.zip
+                    sudo mv terraform /usr/local/bin/
+                    rm terraform.zip
                     ;;
                 npm|npx|node)
                     if command_exists apt-get; then
-                        sudo apt-get update && sudo apt-get install -y nodejs npm
+                        sudo apt-get update
+                        sudo apt-get install -y nodejs npm
                     elif command_exists brew; then
                         brew install node
                     else
@@ -36,7 +41,8 @@ install_requirements() {
                     ;;
                 jq|git)
                     if command_exists apt-get; then
-                        sudo apt-get update && sudo apt-get install -y $cmd
+                        sudo apt-get update
+                        sudo apt-get install -y $cmd
                     elif command_exists brew; then
                         brew install $cmd
                     else
@@ -45,7 +51,7 @@ install_requirements() {
                     fi
                     ;;
                 sharp)
-                    npm install -g sharp-cli
+                    npm install -g sharp-cli --yes
                     ;;
             esac
         fi
