@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Disable the AWS CLI pager
+export AWS_PAGER=""
+
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -10,14 +13,14 @@ command_exists() {
 # Check for required commands
 for cmd in git curl; do
     if ! command_exists $cmd; then
-        echo "Error: $cmd is not installed. Please install it and try again."
+        echo "Error: $cmd is not installed. Please install it and try again." >&2
         exit 1
     fi
 done
 
 # Check if environment variables are set
 if [ -z "${GITHUB_USERNAME:-}" ] || [ -z "${GITHUB_ACCESS_TOKEN:-}" ]; then
-    echo "Error: GITHUB_USERNAME and GITHUB_ACCESS_TOKEN must be set in your environment."
+    echo "Error: GITHUB_USERNAME and GITHUB_ACCESS_TOKEN must be set in your environment." >&2
     exit 1
 fi
 
@@ -33,22 +36,9 @@ get_domain_name() {
     export DOMAIN_NAME REPO_NAME
 }
 
-# Function to copy necessary scripts
-copy_scripts() {
-    local script_dir="/Users/leo/.scripts"
-    local scripts=("main.sh" "deploy_website.sh" "install_requirements.sh" "setup_aws.sh" "setup_site.sh" "setup_terraform.sh")
-
-    mkdir -p scripts
-    for script in "${scripts[@]}"; do
-        cp "$script_dir/$script" "scripts/$script"
-        chmod +x "scripts/$script"
-    done
-}
-
 # Function to setup the website repo
 setup_website_repo() {
     local template_repo="website"
-    local repo_visibility="private"
     local use_td=false
 
     # Check if 'td' argument is provided
@@ -68,41 +58,32 @@ setup_website_repo() {
             cd "$dir"
             break
         else
-            echo "Invalid selection"
+            echo "Invalid selection" >&2
+            exit 1
         fi
     done
 
     get_domain_name
 
-    # Check if the repository already exists
     if [ -d "$REPO_NAME" ]; then
-        echo "Repository $REPO_NAME already exists. Updating existing repository."
+        echo "Repository $REPO_NAME already exists locally. Updating..."
         cd "$REPO_NAME"
-        if [ ! -d .git ]; then
-            git init
-            git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
-        fi
+        git fetch origin
+        git reset --hard origin/master
     else
-        echo "Creating new repository $REPO_NAME."
-        mkdir "$REPO_NAME"
+        echo "Cloning repository $REPO_NAME..."
+        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" 2>/dev/null; then
+            echo "Repository doesn't exist. Cloning template repository..."
+            if ! git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" "$REPO_NAME"; then
+                echo "Error: Failed to clone the template repository." >&2
+                exit 1
+            fi
+        fi
         cd "$REPO_NAME"
-        if ! git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" .; then
-            echo "Error: Failed to clone the template repository."
-            return 1
-        fi
-
-        # Remove the original remote
-        git remote remove origin
-
-        # Create a new private repository on GitHub for the user's website
-        if ! curl -u $GITHUB_USERNAME:$GITHUB_ACCESS_TOKEN https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'; then
-            echo "Error: Failed to create GitHub repository."
-            return 1
-        fi
-
-        # Add the new remote
-        git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
     fi
+
+    # Ensure remote is set correctly
+    git remote set-url origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
 
     # Ensure .domain file exists and is up to date
     echo "$DOMAIN_NAME" > .domain
@@ -119,26 +100,49 @@ setup_website_repo() {
         echo "default" > .logo
     fi
 
-    # Copy necessary scripts
-    copy_scripts
-
     # Commit any changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true  # Commit only if there are changes
 
+    # Get the current branch name
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    echo "Current branch: $current_branch"
+
+    # Pull changes from remote
+    git pull origin $current_branch --rebase
+
     # Push changes
-    if ! git push -u origin HEAD:main --force; then
-        echo "Error: Failed to push changes to GitHub."
-        return 1
+    if ! git push -u origin "$current_branch"; then
+        echo "Error: Failed to push changes to GitHub." >&2
+        echo "Current directory: $(pwd)" >&2
+        echo "Git status:" >&2
+        git status >&2
+        echo "Git remote -v:" >&2
+        git remote -v >&2
+        exit 1
     fi
 
     echo "Website repo setup complete. Your repo is at https://github.com/$GITHUB_USERNAME/$REPO_NAME"
 
+    # Ensure scripts are executable
+    chmod +x scripts/*.sh
+
     # Run main.sh
-    if [ "$use_td" = true ]; then
-        ./scripts/main.sh td
+    if [ -f "scripts/main.sh" ]; then
+        if [ "$use_td" = true ]; then
+            if ! ./scripts/main.sh td; then
+                echo "Error: Failed to execute scripts/main.sh td" >&2
+                exit 1
+            fi
+        else
+            if ! ./scripts/main.sh; then
+                echo "Error: Failed to execute scripts/main.sh" >&2
+                exit 1
+            fi
+        fi
     else
-        ./scripts/main.sh
+        echo "Error: main.sh not found in the scripts directory." >&2
+        exit 1
     fi
 }
 
