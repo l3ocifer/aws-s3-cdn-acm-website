@@ -33,6 +33,18 @@ get_domain_name() {
     export DOMAIN_NAME REPO_NAME
 }
 
+# Function to copy necessary scripts
+copy_scripts() {
+    local script_dir="/Users/leo/.scripts"
+    local scripts=("main.sh" "deploy_website.sh" "install_requirements.sh" "setup_aws.sh" "setup_site.sh" "setup_terraform.sh")
+
+    mkdir -p scripts
+    for script in "${scripts[@]}"; do
+        cp "$script_dir/$script" "scripts/$script"
+        chmod +x "scripts/$script"
+    done
+}
+
 # Function to setup the website repo
 setup_website_repo() {
     local template_repo="website"
@@ -66,11 +78,15 @@ setup_website_repo() {
     if [ -d "$REPO_NAME" ]; then
         echo "Repository $REPO_NAME already exists. Updating existing repository."
         cd "$REPO_NAME"
+        if [ ! -d .git ]; then
+            git init
+            git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+        fi
     else
         echo "Creating new repository $REPO_NAME."
         mkdir "$REPO_NAME"
         cd "$REPO_NAME"
-        if ! git clone https://github.com/$GITHUB_USERNAME/$template_repo.git .; then
+        if ! git clone "https://github.com/$GITHUB_USERNAME/$template_repo.git" .; then
             echo "Error: Failed to clone the template repository."
             return 1
         fi
@@ -85,7 +101,7 @@ setup_website_repo() {
         fi
 
         # Add the new remote
-        git remote add origin https://github.com/$GITHUB_USERNAME/$REPO_NAME.git
+        git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
     fi
 
     # Ensure .domain file exists and is up to date
@@ -103,6 +119,9 @@ setup_website_repo() {
         echo "default" > .logo
     fi
 
+    # Copy necessary scripts
+    copy_scripts
+
     # Commit any changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true  # Commit only if there are changes
@@ -117,9 +136,9 @@ setup_website_repo() {
 
     # Run main.sh
     if [ "$use_td" = true ]; then
-        ./main.sh td
+        ./scripts/main.sh td
     else
-        ./main.sh
+        ./scripts/main.sh
     fi
 }
 
