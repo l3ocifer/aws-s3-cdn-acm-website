@@ -82,6 +82,12 @@ data "aws_route53_zone" "existing" {
   private_zone = false
 }
 
+# Add this resource to create a Route 53 hosted zone if it doesn't exist
+resource "aws_route53_zone" "primary" {
+  count = var.hosted_zone_exists ? 0 : 1
+  name  = var.domain_name
+}
+
 resource "aws_route53_record" "website" {
   zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
   name    = var.domain_name
