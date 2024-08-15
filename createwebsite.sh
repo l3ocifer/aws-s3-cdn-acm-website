@@ -65,8 +65,18 @@ setup_or_update_repo() {
 
     # Check if the GitHub repository exists
     if ! curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then
-        echo "Creating new repository on GitHub..."
-        curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'
+        echo "Attempting to create new repository on GitHub..."
+        create_response=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GITHUB_ACCESS_TOKEN" https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}')
+        status_code=$(echo "$create_response" | tail -n1)
+        response_body=$(echo "$create_response" | sed '$d')
+
+        if [ "$status_code" != "201" ]; then
+            echo "Failed to create GitHub repository. Status code: $status_code"
+            echo "Response: $response_body"
+            echo "The repository may already exist. Continuing with the assumption that it does."
+        else
+            echo "GitHub repository created successfully."
+        fi
     else
         echo "GitHub repository $REPO_NAME already exists."
     fi
@@ -79,10 +89,19 @@ setup_or_update_repo() {
     sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
 
-    # Commit and push changes
+    # Commit changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
-    git push -u origin master || echo "Failed to push to GitHub. You may need to push manually."
+
+    # Push changes
+    echo "Pushing changes to GitHub..."
+    if ! git push -u origin master; then
+        echo "Failed to push to GitHub. You may need to push manually."
+        echo "Try running: git push -u origin master"
+        echo "If you encounter issues, ensure your GitHub access token has the correct permissions."
+    else
+        echo "Changes pushed to GitHub successfully."
+    fi
 }
 
 # Main execution
