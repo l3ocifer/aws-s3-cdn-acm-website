@@ -48,6 +48,39 @@ get_domain_name() {
     export DOMAIN_NAME REPO_NAME
 }
 
+# Function to setup or clone the repository
+setup_or_clone_repo() {
+    get_domain_name
+
+    # Navigate to the correct directory or create it
+    REPO_DIR="$HOME/git/$REPO_NAME"
+    if [ -d "$REPO_DIR" ]; then
+        cd "$REPO_DIR"
+        echo "Repository $REPO_NAME already exists locally. Updating..."
+        git fetch origin
+        git reset --hard origin/master || true
+    else
+        mkdir -p "$REPO_DIR"
+        cd "$REPO_DIR"
+        echo "Cloning repository $REPO_NAME..."
+        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" . 2>/dev/null; then
+            echo "Repository doesn't exist on GitHub. Creating a new one..."
+            git init
+            git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+
+            echo "Cloning the template repository into $REPO_NAME..."
+            if ! git clone "https://github.com/$GITHUB_USERNAME/website.git" .; then
+                echo "Error: Failed to clone the template repository." >&2
+                exit 1
+            fi
+
+            git add .
+            git commit -m "Initial commit from template repository"
+            git push -u origin master
+        fi
+    fi
+}
+
 # Function to update repo with latest template changes
 update_repo_from_template() {
     local template_repo="website"
@@ -88,21 +121,29 @@ update_repo_from_template() {
         return 1
     fi
 
-    # Update specific files with customized content
+    # Remove files that should not be updated
+    git reset HEAD .domain .content .logo
+    git checkout -- .domain .content .logo
+
+    # Update specific files with customized content without creating -e files
     if [ -f terraform/backend.tf ]; then
-        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
+        sed -i'' "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
     else
         echo "Warning: terraform/backend.tf not found. Skipping customization."
     fi
 
     if [ -f scripts/setup_terraform.sh ]; then
-        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" scripts/setup_terraform.sh
+        sed -i'' "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" scripts/setup_terraform.sh
     else
         echo "Warning: scripts/setup_terraform.sh not found. Skipping customization."
     fi
 
+    # Clean up any potential backup files created by sed (in case sed creates them)
+    rm -f scripts/setup_terraform.sh-e terraform/backend.tf-e
+
     # Commit the changes
-    git commit -m "Update from template repository"
+    git add .
+    git commit -m "Update from template repository" || true  # Commit only if there are changes
 
     # Switch back to the original branch and merge the changes
     git checkout $original_branch
@@ -132,35 +173,7 @@ setup_website_repo() {
         use_td=true
     fi
 
-    get_domain_name
-
-    # Check if we're already in the correct directory
-    if [ "$(basename "$PWD")" != "$REPO_NAME" ]; then
-        # If not, navigate to the correct directory or create it
-        if [ -d "$HOME/git/$REPO_NAME" ]; then
-            cd "$HOME/git/$REPO_NAME"
-        else
-            mkdir -p "$HOME/git/$REPO_NAME"
-            cd "$HOME/git/$REPO_NAME"
-        fi
-    fi
-
-    if [ -d .git ]; then
-        echo "Repository $REPO_NAME already exists locally. Updating..."
-        git fetch origin
-        git reset --hard origin/master
-        update_repo_from_template
-    else
-        echo "Cloning repository $REPO_NAME..."
-        if ! git clone "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git" . 2>/dev/null; then
-            echo "Repository doesn't exist. Cloning template repository..."
-            if ! git clone "https://github.com/$GITHUB_USERNAME/website.git" .; then
-                echo "Error: Failed to clone the template repository." >&2
-                exit 1
-            fi
-            update_repo_from_template
-        fi
-    fi
+    setup_or_clone_repo
 
     # Ensure remote is set correctly
     git remote set-url origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
