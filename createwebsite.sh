@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+# Disable the AWS CLI pager
+export AWS_PAGER=""
+
+# Disable Next.js telemetry
+export NEXT_TELEMETRY_DISABLED=1
+
 # Check for required commands
 for cmd in git curl aws; do
     if ! command -v $cmd &> /dev/null; then
