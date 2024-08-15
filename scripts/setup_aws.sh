@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Function to check and setup AWS credentials
 setup_aws_credentials() {
     if [ -z "${AWS_PROFILE:-}" ]; then
         if [ -f .env ]; then
@@ -22,7 +21,6 @@ setup_aws_credentials() {
     fi
 }
 
-# Function to check AWS CLI version
 check_aws_cli_version() {
     local min_version="2.0.0"
     local current_version=$(aws --version 2>&1 | cut -d/ -f2 | cut -d' ' -f1)
@@ -32,7 +30,6 @@ check_aws_cli_version() {
     fi
 }
 
-# Function to check if hosted zone exists
 check_hosted_zone() {
     DOMAIN_NAME=$(cat .domain)
     HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
@@ -46,7 +43,6 @@ check_hosted_zone() {
     export HOSTED_ZONE_EXISTS
 }
 
-# Function to check if ACM certificate exists
 check_acm_certificate() {
     DOMAIN_NAME=$(cat .domain)
     ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
@@ -59,15 +55,6 @@ check_acm_certificate() {
     fi
     export ACM_CERT_EXISTS
 }
-
-# Cleanup function
-cleanup() {
-    echo "Cleaning up AWS setup..."
-    rm -f .env
-}
-
-# Set trap for cleanup
-trap cleanup EXIT
 
 # Main execution
 check_aws_cli_version

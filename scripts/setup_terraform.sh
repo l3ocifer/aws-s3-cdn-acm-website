@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Function to setup Terraform variables
 setup_terraform_vars() {
     if [ ! -f .domain ]; then
         echo "Domain file (.domain) not found. Please run the main script first." >&2
@@ -10,7 +9,20 @@ setup_terraform_vars() {
     fi
     DOMAIN_NAME=$(cat .domain)
 
-    # Check if hosted zone exists
+    check_hosted_zone
+    check_acm_certificate
+
+    cat << EOF > terraform/terraform.tfvars
+domain_name = "${DOMAIN_NAME}"
+hosted_zone_exists = ${HOSTED_ZONE_EXISTS}
+acm_cert_exists = ${ACM_CERT_EXISTS}
+EOF
+
+    sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/${DOMAIN_NAME}/g" terraform/backend.tf
+    rm -f terraform/backend.tf.bak
+}
+
+check_hosted_zone() {
     HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
     if [[ -n "$HOSTED_ZONE_ID" ]]; then
         echo "Hosted zone for ${DOMAIN_NAME} already exists."
@@ -19,8 +31,9 @@ setup_terraform_vars() {
         echo "No hosted zone found for ${DOMAIN_NAME}. It will be created."
         HOSTED_ZONE_EXISTS=false
     fi
+}
 
-    # Check if ACM certificate exists
+check_acm_certificate() {
     ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
     if [[ -n "$ACM_CERT_ARN" ]]; then
         echo "ACM certificate for ${DOMAIN_NAME} already exists."
@@ -29,21 +42,9 @@ setup_terraform_vars() {
         echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created."
         ACM_CERT_EXISTS=false
     fi
-
-    cat << EOF > terraform/terraform.tfvars
-domain_name = "${DOMAIN_NAME}"
-hosted_zone_exists = ${HOSTED_ZONE_EXISTS}
-acm_cert_exists = ${ACM_CERT_EXISTS}
-EOF
-
-    # Update backend.tf with the correct bucket name
-    sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/${DOMAIN_NAME}/g" terraform/backend.tf
-    rm -f terraform/backend.tf.bak
 }
 
-# Function to setup or verify the backend S3 bucket
 setup_backend_bucket() {
-    DOMAIN_NAME=$(cat .domain)
     local bucket_name="${DOMAIN_NAME}-tf-state"
 
     if ! aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
@@ -56,7 +57,6 @@ setup_backend_bucket() {
     fi
 }
 
-# Function to initialize and apply Terraform
 init_apply_terraform() {
     (
         cd terraform
@@ -65,17 +65,6 @@ init_apply_terraform() {
     )
 }
 
-# Cleanup function
-cleanup() {
-    echo "Cleaning up..."
-    rm -f terraform/terraform.tfvars
-    rm -f terraform/backend.tf.bak
-}
-
-# Set trap for cleanup
-trap cleanup EXIT
-
-# Main execution
 setup_terraform_vars
 setup_backend_bucket
 init_apply_terraform
