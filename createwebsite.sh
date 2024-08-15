@@ -104,11 +104,15 @@ update_repo_from_template() {
     # Switch back to the original branch
     git checkout $original_branch
 
-    # Merge changes from the temporary branch
-    if ! git merge --no-ff $temp_branch -m "Merge template updates"; then
-        echo "Failed to merge changes into the original branch. Please resolve conflicts manually."
-        echo "You can find the template changes in the '$temp_branch' branch."
-        git merge --abort || true
+    # Attempt to merge changes from the temporary branch, allowing unrelated histories
+    if ! git merge --allow-unrelated-histories --no-ff $temp_branch -m "Merge template updates"; then
+        echo "Conflicts occurred when merging template changes. Please resolve them manually."
+        echo "Steps to resolve conflicts:"
+        echo "1. Run 'git status' to see which files have conflicts."
+        echo "2. Edit the conflicting files to resolve the conflicts."
+        echo "3. After resolving conflicts, run 'git add <conflicting-file>' for each resolved file."
+        echo "4. Run 'git commit' to complete the merge."
+        echo "5. After resolving conflicts, run the script again."
         return 1
     fi
 
@@ -123,6 +127,7 @@ update_repo_from_template() {
         if ! git stash apply stash^{/$stash_name}; then
             echo "Conflicts occurred when applying local changes. Please resolve them manually."
             echo "Your local changes are in the stash. Use 'git stash show -p stash^{/$stash_name}' to view them."
+            echo "After resolving conflicts, run 'git stash drop stash@{0}' to remove the stash."
             return 1
         fi
         git stash drop stash@{0}
