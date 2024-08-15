@@ -10,9 +10,24 @@ setup_terraform_vars() {
     fi
     DOMAIN_NAME=$(cat .domain)
 
-    if [ -z "${HOSTED_ZONE_EXISTS:-}" ] || [ -z "${ACM_CERT_EXISTS:-}" ]; then
-        echo "HOSTED_ZONE_EXISTS and ACM_CERT_EXISTS must be set in the environment." >&2
-        exit 1
+    # Check if hosted zone exists
+    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
+    if [[ -n "$HOSTED_ZONE_ID" ]]; then
+        echo "Hosted zone for ${DOMAIN_NAME} already exists."
+        HOSTED_ZONE_EXISTS=true
+    else
+        echo "No hosted zone found for ${DOMAIN_NAME}. It will be created."
+        HOSTED_ZONE_EXISTS=false
+    fi
+
+    # Check if ACM certificate exists
+    ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
+    if [[ -n "$ACM_CERT_ARN" ]]; then
+        echo "ACM certificate for ${DOMAIN_NAME} already exists."
+        ACM_CERT_EXISTS=true
+    else
+        echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created."
+        ACM_CERT_EXISTS=false
     fi
 
     cat << EOF > terraform/terraform.tfvars

@@ -30,7 +30,7 @@ resource "aws_s3_bucket_website_configuration" "website" {
 
 resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
-    domain_name = aws_s3_bucket.website.bucket_domain_name
+    domain_name = aws_s3_bucket.website.bucket_regional_domain_name
     origin_id   = "S3-${var.domain_name}"
     custom_origin_config {
       http_port              = 80
@@ -76,6 +76,12 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   }
 }
 
+data "aws_route53_zone" "existing" {
+  count        = var.hosted_zone_exists ? 1 : 0
+  name         = var.domain_name
+  private_zone = false
+}
+
 resource "aws_route53_zone" "primary" {
   count = var.hosted_zone_exists ? 0 : 1
   name  = var.domain_name
@@ -100,12 +106,6 @@ resource "aws_acm_certificate" "cert" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-data "aws_route53_zone" "existing" {
-  count        = var.hosted_zone_exists ? 1 : 0
-  name         = var.domain_name
-  private_zone = false
 }
 
 data "aws_acm_certificate" "existing" {
