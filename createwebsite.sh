@@ -63,10 +63,12 @@ setup_or_update_repo() {
     # Make scripts executable
     chmod +x scripts/*.sh
 
-    # Create new repository on GitHub if it doesn't exist
+    # Check if the GitHub repository exists
     if ! curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then
         echo "Creating new repository on GitHub..."
         curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}'
+    else
+        echo "GitHub repository $REPO_NAME already exists."
     fi
 
     # Set the new origin
@@ -80,7 +82,7 @@ setup_or_update_repo() {
     # Commit and push changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
-    git push -u origin master
+    git push -u origin master || echo "Failed to push to GitHub. You may need to push manually."
 }
 
 # Main execution

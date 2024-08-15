@@ -32,7 +32,8 @@ init_apply_terraform() {
     (
         cd terraform
         terraform init -reconfigure -input=false
-        terraform apply -auto-approve -var-file=terraform.tfvars
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
     )
 }
 
