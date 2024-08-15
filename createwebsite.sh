@@ -50,81 +50,92 @@ get_domain_name() {
 
 # Function to update repo with latest template changes
 update_repo_from_template() {
-    local template_repo="website"
-    local template_remote="template"
-    local temp_branch="temp_update_branch_$$"  # Use PID to make the branch name unique
-    local original_branch=$(git rev-parse --abbrev-ref HEAD)
+   local template_repo="website"
+   local template_remote="template"
+   local temp_branch="temp_update_branch_$$"  # Use PID to make the branch name unique
+   local original_branch=$(git rev-parse --abbrev-ref HEAD)
+   local stash_name="temp_stash_$$"
 
-    echo "Updating from template repository..."
+   echo "Updating from template repository..."
 
-    # Clean up existing temporary branch if it exists
-    if git show-ref --quiet refs/heads/$temp_branch; then
-        echo "Removing existing temporary branch..."
-        git worktree remove -f $temp_branch 2>/dev/null || true
-        git branch -D $temp_branch 2>/dev/null || true
-    fi
+   # Stash any local changes
+   git stash push -m "$stash_name"
 
-    # Add template repository as a remote if it doesn't exist
-    if ! git remote | grep -q "^${template_remote}$"; then
-        git remote add ${template_remote} "https://github.com/$GITHUB_USERNAME/$template_repo.git"
-    fi
+   # Clean up existing temporary branch if it exists
+   if git show-ref --quiet refs/heads/$temp_branch; then
+       echo "Removing existing temporary branch..."
+       git worktree remove -f $temp_branch 2>/dev/null || true
+       git branch -D $temp_branch 2>/dev/null || true
+   fi
 
-    # Fetch all branches from the template repository
-    git fetch ${template_remote}
+   # Add template repository as a remote if it doesn't exist
+   if ! git remote | grep -q "^${template_remote}$"; then
+       git remote add ${template_remote} "https://github.com/$GITHUB_USERNAME/$template_repo.git"
+   fi
 
-    # Determine the default branch of the template repository
-    local template_default_branch=$(git remote show ${template_remote} | grep 'HEAD branch' | cut -d' ' -f5)
+   # Fetch all branches from the template repository
+   git fetch ${template_remote}
 
-    # Create a temporary branch to merge changes
-    git checkout -b $temp_branch
+   # Determine the default branch of the template repository
+   local template_default_branch=$(git remote show ${template_remote} | grep 'HEAD branch' | cut -d' ' -f5)
 
-    # Attempt to merge changes from the template repository's default branch
-    if ! git merge -X theirs --no-commit --no-ff "${template_remote}/${template_default_branch}"; then
-        echo "Failed to merge changes from template. Aborting merge and returning to original state."
-        git merge --abort
-        git checkout $original_branch
-        git branch -D $temp_branch
-        git remote remove ${template_remote}
-        return 1
-    fi
+   # Create a temporary branch to merge changes
+   git checkout -b $temp_branch
 
-    # Remove files that should not be updated
-    git reset HEAD .domain .content .logo
-    git checkout -- .domain .content .logo
+   # Attempt to merge changes from the template repository's default branch
+   if ! git merge -X theirs --no-commit --no-ff "${template_remote}/${template_default_branch}"; then
+       echo "Failed to merge changes from template. Aborting merge and returning to original state."
+       git merge --abort
+       git checkout $original_branch
+       git branch -D $temp_branch
+       git remote remove ${template_remote}
+       git stash pop
+       return 1
+   fi
 
-    # Update specific files with customized content
-    if [ -f terraform/backend.tf ]; then
-        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
-    else
-        echo "Warning: terraform/backend.tf not found. Skipping customization."
-    fi
+   # Remove files that should not be updated
+   git reset HEAD .domain .content .logo
+   git checkout -- .domain .content .logo
 
-    if [ -f scripts/setup_terraform.sh ]; then
-        sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" scripts/setup_terraform.sh
-    else
-        echo "Warning: scripts/setup_terraform.sh not found. Skipping customization."
-    fi
+   # Update specific files with customized content
+   if [ -f terraform/backend.tf ]; then
+       sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
+   else
+       echo "Warning: terraform/backend.tf not found. Skipping customization."
+   fi
 
-    # Commit the changes
-    git commit -m "Update from template repository"
+   if [ -f scripts/setup_terraform.sh ]; then
+       sed -i'' -e "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" scripts/setup_terraform.sh
+   else
+       echo "Warning: scripts/setup_terraform.sh not found. Skipping customization."
+   fi
 
-    # Switch back to the original branch and merge the changes
-    git checkout $original_branch
-    if ! git merge --no-ff $temp_branch -m "Merge template updates"; then
-        echo "Failed to merge changes into the original branch. Please resolve conflicts manually."
-        git merge --abort
-        echo "Changes from the template are in the '$temp_branch' branch."
-        git remote remove ${template_remote}
-        return 1
-    fi
+   # Commit the changes
+   git commit -m "Update from template repository"
 
-    # Delete the temporary branch
-    git branch -D $temp_branch
+   # Switch back to the original branch and merge the changes
+   git checkout $original_branch
+   if ! git merge --no-ff $temp_branch -m "Merge template updates"; then
+       echo "Failed to merge changes into the original branch. Please resolve conflicts manually."
+       git merge --abort
+       echo "Changes from the template are in the '$temp_branch' branch."
+       git remote remove ${template_remote}
+       git stash pop
+       return 1
+   fi
 
-    # Remove the template remote
-    git remote remove ${template_remote}
+   # Delete the temporary branch
+   git branch -D $temp_branch
 
-    echo "Successfully updated from template repository."
+   # Remove the template remote
+   git remote remove ${template_remote}
+
+   # Apply stashed changes if any
+   if git stash list | grep -q "$stash_name"; then
+       git stash pop
+   fi
+
+   echo "Successfully updated from template repository."
 }
 
 # Function to setup the website repo
