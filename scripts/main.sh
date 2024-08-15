@@ -17,7 +17,6 @@ warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"; }
 source scripts/env_checks.sh
 source scripts/git_operations.sh
 source scripts/domain_management.sh
-source scripts/aws_operations.sh
 
 # Function to get domain name
 get_domain_name() {

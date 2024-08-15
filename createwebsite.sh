@@ -10,8 +10,8 @@ source scripts/domain_management.sh
 # Check required environment variables
 check_env_variables
 
-# Get or prompt for domain name
-get_domain_name
+# Get or prompt for domain name and repo path
+get_domain_and_repo
 
 # Setup or clone the repository
 setup_or_clone_repo

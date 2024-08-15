@@ -2,7 +2,7 @@
 
 LAST_DOMAIN_FILE="/tmp/last_website_domain_$$.tmp"
 
-get_domain_name() {
+get_domain_and_repo() {
     if [ -f "$LAST_DOMAIN_FILE" ]; then
         LAST_DOMAIN=$(cat "$LAST_DOMAIN_FILE")
         read -p "Use the last domain ($LAST_DOMAIN)? (y/n): " use_last
@@ -16,7 +16,11 @@ get_domain_name() {
     fi
     echo "$DOMAIN_NAME" > "$LAST_DOMAIN_FILE"
     REPO_NAME=${DOMAIN_NAME%%.*}
-    export DOMAIN_NAME REPO_NAME
+
+    read -e -p "Enter the path for the git repository (default: $HOME/git/$REPO_NAME): " REPO_PATH
+    REPO_PATH=${REPO_PATH:-"$HOME/git/$REPO_NAME"}
+
+    export DOMAIN_NAME REPO_NAME REPO_PATH
 }
 
 setup_website_repo() {
@@ -41,17 +45,11 @@ setup_website_repo() {
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
 
-    current_branch=$(git rev-parse --abbrev-ref HEAD)
-    echo "Current branch: $current_branch"
-
     create_github_repo
 
-    if ! git push -u origin "$current_branch" --force; then
+    if ! git push -u origin "$(git rev-parse --abbrev-ref HEAD)" --force; then
         echo "Error: Failed to push changes to GitHub." >&2
-        echo "Current directory: $(pwd)" >&2
-        echo "Git status:" >&2
         git status >&2
-        echo "Git remote -v:" >&2
         git remote -v >&2
         exit 1
     fi
@@ -75,19 +73,12 @@ run_main_script() {
 
     if [ -f "scripts/main.sh" ]; then
         if [ "$use_td" = true ]; then
-            if ! ./scripts/main.sh td; then
-                echo "Error: Failed to execute scripts/main.sh td" >&2
-                exit 1
-            fi
+            ./scripts/main.sh td || error "Failed to execute scripts/main.sh td"
         else
-            if ! ./scripts/main.sh; then
-                echo "Error: Failed to execute scripts/main.sh" >&2
-                exit 1
-            fi
+            ./scripts/main.sh || error "Failed to execute scripts/main.sh"
         fi
     else
-        echo "Error: main.sh not found in the scripts directory." >&2
-        exit 1
+        error "main.sh not found in the scripts directory."
     fi
 }
 
