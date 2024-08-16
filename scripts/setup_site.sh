@@ -16,12 +16,20 @@ handle_logo_file() {
 }
 
 setup_nextjs_app() {
+    DOMAIN_NAME=$(cat ../.domain)
+
     if [ ! -d "next-app" ]; then
         echo "Creating Next.js app..."
         npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
     fi
 
     cd next-app || exit 1
+
+    # Ensure package.json exists
+    if [ ! -f "package.json" ]; then
+        echo "Error: package.json not found. Next.js app creation might have failed."
+        exit 1
+    fi
 
     # Update package.json scripts
     npm pkg set scripts.build="next build"
