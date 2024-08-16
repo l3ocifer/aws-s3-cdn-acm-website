@@ -170,6 +170,26 @@ create_favicon() {
     convert "$logo" -resize 32x32 "$favicon"
 }
 
+# Function to check and install ImageMagick
+check_and_install_imagemagick() {
+    if ! command -v convert &> /dev/null; then
+        echo "ImageMagick not found. Attempting to install..."
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y imagemagick
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y ImageMagick
+        elif command -v brew &> /dev/null; then
+            brew install imagemagick
+        else
+            echo "Error: Unable to install ImageMagick. Please install it manually and try again."
+            exit 1
+        fi
+    fi
+}
+
+# Check and install ImageMagick if necessary
+check_and_install_imagemagick
+
 customize_site() {
     log "Starting site customization..."
 

@@ -37,13 +37,6 @@ handle_content_file() {
     fi
 }
 
-handle_logo_file() {
-    local logo_file=".logo"
-    if [ ! -f "$logo_file" ]; then
-        create_default_logo "public/default-logo.png"
-        echo "public/default-logo.png" > "$logo_file"
-    fi
-}
 
 handle_config_file() {
     local config_file=".config"
