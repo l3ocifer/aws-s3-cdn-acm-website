@@ -15,6 +15,20 @@ handle_logo_file() {
     fi
 }
 
+create_default_logo() {
+    local domain="$1"
+    local output_file="$2"
+    
+    # Check if ImageMagick is installed
+    if command -v convert &> /dev/null; then
+        convert -size 100x24 xc:white -font Arial -pointsize 12 -fill black -gravity center -draw "text 0,0 '${domain}'" "${output_file}"
+    else
+        # Fallback to creating a simple text file as a placeholder
+        echo "${domain}" > "${output_file}"
+        echo "ImageMagick not found. Created a text file as a placeholder logo."
+    fi
+}
+
 setup_nextjs_app() {
     if [ -d "next-app" ]; then
         echo "Next.js app already set up. Updating configuration..."
@@ -142,6 +156,12 @@ EOF
         else
             cp "$logo_path" public/icon.png
         fi
+        
+        # Check if sharp is installed
+        if ! command -v npx sharp &> /dev/null; then
+            npm install sharp
+        fi
+        
         npx sharp -i public/icon.png -o public/favicon.ico --format ico
         npx sharp -i public/icon.png -o public/logo.png resize 100 24
         npx sharp -i public/icon.png -o public/apple-touch-icon.png resize 180 180
@@ -150,7 +170,7 @@ EOF
         done
     else
         # Create a simple default logo
-        convert -size 100x24 xc:white -font Arial -pointsize 12 -fill black -gravity center -draw "text 0,0 '${DOMAIN_NAME}'" public/logo.png
+        create_default_logo "${DOMAIN_NAME}" "public/logo.png"
         cp public/logo.png public/icon.png
     fi
 
