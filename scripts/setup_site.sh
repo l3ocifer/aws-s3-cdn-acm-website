@@ -21,7 +21,7 @@ setup_nextjs_app() {
         npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
     fi
 
-    cd next-app
+    cd next-app || exit 1
 
     # Update package.json scripts
     npm pkg set scripts.build="next build"
@@ -33,6 +33,7 @@ setup_nextjs_app() {
     jq -n --arg content "$(cat ../.content)" '[{"title": "Welcome", "content": $content}]' > src/content.json
 
     # Update src/app/layout.tsx
+    mkdir -p src/app
     cat << EOF > src/app/layout.tsx
 import './globals.css'
 import { Inter } from 'next/font/google'
@@ -58,7 +59,7 @@ export default function RootLayout({
 EOF
 
     # Update src/app/page.tsx
-    cat << 'EOF' > src/app/page.tsx
+    cat << EOF > src/app/page.tsx
 import Image from 'next/image'
 import content from '../content.json'
 
@@ -111,21 +112,24 @@ EOF
     sed -i'' "s/\${DOMAIN_NAME}/$DOMAIN_NAME/g" src/app/page.tsx
 
     # Update favicon and other icons
+    mkdir -p public
     if [ "$(cat ../.logo)" != "default" ]; then
         logo_path=$(cat ../.logo)
         if [[ $logo_path == http* ]]; then
-            curl -o public/icon.png $logo_path
+            curl -o public/icon.png "$logo_path"
         else
-            cp $logo_path public/icon.png
+            cp "$logo_path" public/icon.png
         fi
         npx sharp -i public/icon.png -o public/favicon.ico --format ico
         npx sharp -i public/icon.png -o public/logo.png resize 100 24
         npx sharp -i public/icon.png -o public/apple-touch-icon.png resize 180 180
         for size in 16 32 192 512; do
-            npx sharp -i public/icon.png -o public/icon-${size}x${size}.png resize $size $size
+            npx sharp -i public/icon.png -o "public/icon-${size}x${size}.png" resize "$size" "$size"
         done
     else
-        cp public/vercel.svg public/logo.png
+        # Create a simple default logo
+        convert -size 100x24 xc:white -font Arial -pointsize 12 -fill black -gravity center -draw "text 0,0 '${DOMAIN_NAME}'" public/logo.png
+        cp public/logo.png public/icon.png
     fi
 
     npm run build

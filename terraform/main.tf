@@ -14,6 +14,17 @@ variable "acm_cert_exists" {
   type = bool
 }
 
+data "aws_route53_zone" "existing" {
+  count = var.hosted_zone_exists ? 1 : 0
+  name  = var.domain_name
+  private_zone = false
+}
+
+resource "aws_route53_zone" "primary" {
+  count = var.hosted_zone_exists ? 0 : 1
+  name  = var.domain_name
+}
+
 resource "aws_s3_bucket" "website" {
   bucket = var.domain_name
   force_destroy = true
@@ -72,12 +83,6 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   }
 }
 
-data "aws_route53_zone" "existing" {
-  count = var.hosted_zone_exists ? 1 : 0
-  name  = var.domain_name
-  private_zone = false
-}
-
 resource "aws_route53_record" "website" {
   zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
   name    = var.domain_name
@@ -120,7 +125,10 @@ resource "aws_acm_certificate_validation" "cert" {
   validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
 }
 
-resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
-  name  = var.domain_name
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.website_distribution.id
+}
+
+output "name_servers" {
+  value = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].name_servers : aws_route53_zone.primary[0].name_servers
 }
