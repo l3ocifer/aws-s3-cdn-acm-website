@@ -14,9 +14,8 @@ variable "acm_cert_exists" {
   type = bool
 }
 
-resource "aws_route53_zone" "primary" {
+data "aws_route53_zone" "primary" {
   name = var.domain_name
-  # This resource will be imported, so Terraform won't try to create it
 }
 
 resource "aws_s3_bucket" "website" {
