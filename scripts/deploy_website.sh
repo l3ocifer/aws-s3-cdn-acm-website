@@ -5,8 +5,15 @@ set -euo pipefail
 deploy_website() {
     DOMAIN_NAME=$(cat .domain)
     REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
-    aws s3 sync next-app/out "s3://${REPO_NAME}" --delete --cache-control "max-age=31536000,public,immutable" --exclude "*.html" || { echo "Failed to sync website to S3" >&2; exit 1; }
-    aws s3 sync next-app/out "s3://${REPO_NAME}" --delete --cache-control "no-cache" --include "*.html" || { echo "Failed to sync HTML files to S3" >&2; exit 1; }
+    
+    # Check if the public directory exists
+    if [ ! -d "public" ]; then
+        echo "Error: 'public' directory not found. Make sure the website has been built." >&2
+        exit 1
+    fi
+
+    aws s3 sync public "s3://${REPO_NAME}" --delete --cache-control "max-age=31536000,public,immutable" --exclude "*.html" || { echo "Failed to sync website to S3" >&2; exit 1; }
+    aws s3 sync public "s3://${REPO_NAME}" --delete --cache-control "no-cache" --include "*.html" || { echo "Failed to sync HTML files to S3" >&2; exit 1; }
 
     invalidate_cloudfront
 }
