@@ -86,14 +86,14 @@ setup_or_update_repo() {
 }
 
 # Main execution
-if [ "$1" == "--help" ]; then
+if [ "${1:-}" == "--help" ]; then
     echo "Usage: $0 [td]"
     echo "  td: Destroy the infrastructure after setup"
     exit 0
 fi
 
 get_or_set_last_domain
-REPO_NAME=${DOMAIN_NAME%%.*}
+REPO_NAME="paskaie.com"
 REPO_PATH="$HOME/git/$REPO_NAME"
 
 setup_or_update_repo
@@ -103,12 +103,13 @@ if [ -f "scripts/main.sh" ]; then
     if [ "${1:-}" = "td" ]; then
         ./scripts/main.sh td
     else
-        ./scripts/main.sh
+        ./scripts.main.sh
     fi
 else
     echo "Error: main.sh not found in the scripts directory." >&2
     exit 1
 fi
+
 
 echo "Website setup complete. Your repository is at https://github.com/$GITHUB_USERNAME/$REPO_NAME"
 echo "Your website should be accessible at https://$DOMAIN_NAME once DNS propagation is complete."
