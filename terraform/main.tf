@@ -114,36 +114,45 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   }
 }
 
-data "aws_iam_policy_document" "s3_policy" {
-  statement {
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.website_bucket.arn}/*"]
-    principals {
-      type        = "Service"
-      identifiers = ["cloudfront.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.website_distribution.arn]
-    }
-  }
-}
-
 resource "aws_s3_bucket_policy" "website_bucket" {
   bucket = aws_s3_bucket.website_bucket.id
-  policy = data.aws_iam_policy_document.s3_policy.json
+
+  policy = jsonencode({
+    Version = "2008-10-17"
+    Id      = "PolicyForCloudFrontPrivateContent"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontServicePrincipal"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.website_bucket.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.website_distribution.arn
+          }
+        }
+      }
+    ]
+  })
 }
 
 resource "aws_route53_record" "website" {
   zone_id = local.zone_id
   name    = var.domain_name
   type    = "A"
+
   alias {
     name                   = aws_cloudfront_distribution.website_distribution.domain_name
     zone_id                = aws_cloudfront_distribution.website_distribution.hosted_zone_id
     evaluate_target_health = false
   }
+}
+
+output "name_servers" {
+  value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
 }
 
 resource "aws_acm_certificate" "cert" {
@@ -179,8 +188,4 @@ resource "aws_acm_certificate_validation" "cert" {
 
 output "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.website_distribution.id
-}
-
-output "name_servers" {
-  value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
 }
