@@ -43,13 +43,9 @@ fi
 
 # Update content in page.tsx if it exists
 if [ -f "next-app/src/app/page.tsx" ]; then
-    site_name="$domain"
-    site_description="Welcome to $domain"
-
-    # Use sed with different delimiters to avoid issues with slashes in variables
-    sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
-    sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
-    echo "Updated page.tsx with custom content."
+    # Instead of modifying content, we'll just update the color theme
+    sed -i.bak "s/className=\".*\"/className=\"text-$color-600\"/" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
+    echo "Updated page.tsx with selected color theme."
 else
     echo "page.tsx not found. Skipping content update."
 fi

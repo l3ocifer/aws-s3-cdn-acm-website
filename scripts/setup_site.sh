@@ -52,8 +52,8 @@ else
     cd ..
 fi
 
-# Run the customize_site script with the domain name
-./scripts/customize_site.sh "$domain"
+# Run the customize_site script
+./scripts/customize_site.sh
 
 echo "Next.js app setup complete for $domain!"
 
