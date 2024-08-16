@@ -67,7 +67,7 @@ main() {
     fi
 
     # Source and execute the individual modules
-    for module in install_requirements setup_aws setup_terraform setup_site customize_site; do
+    for module in install_requirements setup_aws setup_terraform setup_site; do
         if [ ! -f "./scripts/${module}.sh" ]; then
             error "Required script not found: ./scripts/${module}.sh"
         fi
