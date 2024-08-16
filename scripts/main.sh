@@ -19,7 +19,9 @@ get_domain_name() {
         error "Domain file (.domain) not found. Please run createwebsite.sh first."
     fi
     DOMAIN_NAME=$(cat .domain)
+    REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
     export DOMAIN_NAME
+    export REPO_NAME
 }
 
 
@@ -45,11 +47,8 @@ for module in install_requirements setup_aws setup_terraform setup_site deploy_w
     fi
 done
 
-    log "Infrastructure and backend destroyed successfully."
-else
-    log "Deployment complete! Your website should be accessible at https://${DOMAIN_NAME}"
-    log "Please allow some time for the DNS changes to propagate."
-    (cd terraform && terraform output name_servers)
+log "Deployment complete! Your website should be accessible at https://${DOMAIN_NAME}"
+log "Please allow some time for the DNS changes to propagate."
+(cd terraform && terraform output name_servers)
 
-    log "Project setup complete."
-fi
+log "Project setup complete."

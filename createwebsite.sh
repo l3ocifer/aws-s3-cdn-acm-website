@@ -72,18 +72,23 @@ setup_or_update_repo() {
     sed -i.bak "s/REPO_NAME_PLACEHOLDER/$REPO_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
 
-    # Commit and push changes
+    # Commit changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
+
+    # Create the repository if it doesn't exist
+    echo "Creating or updating GitHub repository..."
+    curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" \
+         -d '{"name":"'"$REPO_NAME"'", "private": true}' \
+         "https://api.github.com/user/repos" || true
+
+    # Set up the new origin
+    git remote remove origin 2>/dev/null || true
+    git remote add origin "$target_repo"
+
+    # Push changes
     echo "Pushing changes to GitHub..."
-    if ! git push -u origin master --force; then
-        echo "Failed to push to GitHub. Creating the repository..."
-        curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" \
-             -d '{"name":"'"$REPO_NAME"'", "private": true}' \
-             "https://api.github.com/user/repos"
-        sleep 5  # Give GitHub a moment to create the repo
-        git push -u origin master --force
-    fi
+    git push -u origin master --force
 }
 
 setup_or_update_repo
