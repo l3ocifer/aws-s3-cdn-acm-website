@@ -21,8 +21,13 @@ if [ -d "next-app" ]; then
     npm install
     npm install @headlessui/react @heroicons/react
 
-    # Update source files
-    cp -R ../src/* src/
+    # Check if ../src directory exists before copying
+    if [ -d "../src" ]; then
+        echo "Updating source files..."
+        cp -R ../src/* src/
+    else
+        echo "No ../src directory found. Skipping source file update."
+    fi
 
     cd ..
 else
@@ -35,8 +40,13 @@ else
     # Install additional dependencies
     npm install @headlessui/react @heroicons/react
 
-    # Copy the content of the src directory
-    cp -R ../src/* src/
+    # Check if ../src directory exists before copying
+    if [ -d "../src" ]; then
+        echo "Copying source files..."
+        cp -R ../src/* src/
+    else
+        echo "No ../src directory found. Skipping source file copy."
+    fi
 
     # Return to the parent directory
     cd ..

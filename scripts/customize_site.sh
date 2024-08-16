@@ -32,28 +32,24 @@ done
 
 echo "Generating site content..."
 
-# Update tailwind.config.js with selected theme
-sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
-sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
+# Update tailwind.config.js with selected theme if it exists
+if [ -f "next-app/tailwind.config.js" ]; then
+    sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
+    sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
+else
+    echo "tailwind.config.js not found. Skipping theme update."
+fi
 
-# Comment out image-related operations
-: <<'END_COMMENT'
-# Generate and optimize images
-convert next-app/public/logo.png -resize 32x32 next-app/public/favicon.ico
-convert next-app/public/logo.png -resize 180x180 next-app/public/apple-touch-icon.png
-convert next-app/public/logo.png -resize 192x192 next-app/public/android-chrome-192x192.png
-convert next-app/public/logo.png -resize 512x512 next-app/public/android-chrome-512x512.png
+# Update content in page.js if it exists
+if [ -f "next-app/src/app/page.js" ]; then
+    site_name="$domain"
+    site_description="Welcome to $domain"
 
-# Optimize images
-find next-app/public -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" \) -exec convert {} -strip -quality 85 {} \;
-END_COMMENT
-
-# Update content in page.js
-site_name="$domain"
-site_description="Welcome to $domain"
-
-# Use sed with different delimiters to avoid issues with slashes in variables
-sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
-sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
+    # Use sed with different delimiters to avoid issues with slashes in variables
+    sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
+    sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
+else
+    echo "page.js not found. Skipping content update."
+fi
 
 echo "Site customization complete!"
