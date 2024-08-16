@@ -39,12 +39,34 @@ setup_aws() {
     create_or_get_hosted_zone
 }
 
+# Function to add name greeting
+add_name_greeting() {
+    local name="$1"
+    local greeting="Hi ${name}!"
+    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" next-app/src/app/page.tsx
+    log "Added greeting for ${name}"
+}
+
+# Function to remove name greeting
+remove_name_greeting() {
+    local site_name=$(grep '^siteName=' .config | cut -d'=' -f2)
+    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${site_name}</h1>|" next-app/src/app/page.tsx
+    log "Removed custom greeting"
+}
+
 # Main execution
 main() {
     get_domain_name
 
+    # Check for name modifier
+    if [[ "$1" == "name="* ]]; then
+        NAME="${1#name=}"
+    else
+        NAME=""
+    fi
+
     # Source and execute the individual modules
-    for module in install_requirements setup_aws setup_terraform setup_site deploy_website customize_site; do
+    for module in install_requirements setup_aws setup_terraform setup_site customize_site; do
         if [ ! -f "./scripts/${module}.sh" ]; then
             error "Required script not found: ./scripts/${module}.sh"
         fi
@@ -54,8 +76,24 @@ main() {
         fi
     done
 
-    log "Website creation, deployment, and customization completed successfully!"
+    # Add or remove name greeting
+    if [ -n "$NAME" ]; then
+        add_name_greeting "$NAME"
+    else
+        remove_name_greeting
+    fi
+
+    # Deploy website
+    if [ ! -f "./scripts/deploy_website.sh" ]; then
+        error "Required script not found: ./scripts/deploy_website.sh"
+    fi
+    log "Deploying website..."
+    if ! bash "./scripts/deploy_website.sh"; then
+        error "Failed to deploy website"
+    fi
+
+    log "Website creation, customization, and deployment completed successfully!"
 }
 
-# Run the main function
-main
+# Run the main function with all script arguments
+main "$@"
