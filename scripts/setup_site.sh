@@ -17,24 +17,35 @@ handle_logo_file() {
 
 setup_nextjs_app() {
     if [ -d "next-app" ]; then
-        echo "Next.js app already set up. Skipping setup."
-        return
+        echo "Next.js app already set up. Updating configuration..."
+        cd next-app || exit 1
+    else
+        echo "Creating Next.js app..."
+        npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
+        cd next-app || exit 1
     fi
 
-    DOMAIN_NAME=${DOMAIN_NAME:-$(cat ../.domain)}
+    # Update package.json scripts
+    npm pkg set scripts.build="next build"
 
-    echo "Creating Next.js app..."
-    npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
-    cd next-app || exit 1
+    # Update next.config.mjs
+    cat << EOF > next.config.mjs
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
+};
+
+export default nextConfig;
+EOF
 
     # Ensure package.json exists
     if [ ! -f "package.json" ]; then
         echo "Error: package.json not found. Next.js app creation might have failed."
         exit 1
     fi
-
-    # Update package.json scripts
-    npm pkg set scripts.build="next build"
 
     handle_content_file
     handle_logo_file
