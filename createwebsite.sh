@@ -55,6 +55,11 @@ setup_or_update_repo() {
         cd "$REPO_PATH"
         git fetch origin
         git reset --hard origin/master
+        
+        # Fetch and merge changes from the default repo
+        git remote add default "https://github.com/$GITHUB_USERNAME/website.git" || true
+        git fetch default
+        git merge default/master --allow-unrelated-histories -X theirs
     else
         echo "Cloning website template repository..."
         mkdir -p "$REPO_PATH"
