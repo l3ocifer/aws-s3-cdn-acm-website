@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Function to check if a command exists
 command_exists() {
@@ -40,7 +41,7 @@ get_or_set_last_domain() {
 
 setup_or_update_repo() {
     local default_repo="https://github.com/$GITHUB_USERNAME/website.git"
-    local target_repo="https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+    local target_repo="https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$REPO_NAME.git"
 
     if [ -d "$REPO_PATH" ]; then
         echo "Repository already exists. Updating..."
@@ -79,7 +80,8 @@ setup_or_update_repo() {
         curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" \
              -d '{"name":"'"$REPO_NAME"'", "private": true}' \
              "https://api.github.com/user/repos"
-        git push -u origin master
+        sleep 5  # Give GitHub a moment to create the repo
+        git push -u origin master --force
     fi
 }
 
