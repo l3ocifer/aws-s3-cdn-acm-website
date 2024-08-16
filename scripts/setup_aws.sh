@@ -42,10 +42,22 @@ get_hosted_zone_nameservers() {
         --query 'DelegationSet.NameServers' --output text | tr '\t' '\n' | sort
 }
 
+check_pending_operations() {
+    local domain_name="$1"
+    local pending_ops=$(aws route53domains list-operations --status IN_PROGRESS --query "Operations[?DomainName=='$domain_name'].OperationId" --output text)
+    if [[ -n "$pending_ops" ]]; then
+        echo "Pending operations found for $domain_name. Waiting for completion..."
+        aws route53domains wait operation-success --operation-id $pending_ops
+        echo "Pending operations completed."
+    fi
+}
+
 update_registered_nameservers() {
     local domain_name="$1"
     local hosted_zone_id="$2"
     local hosted_zone_ns=($(get_hosted_zone_nameservers "$hosted_zone_id"))
+    local max_retries=5
+    local retry_delay=30
 
     local nameservers_json="["
     for ns in "${hosted_zone_ns[@]}"; do
@@ -53,11 +65,22 @@ update_registered_nameservers() {
     done
     nameservers_json="${nameservers_json%,}]"
 
-    aws route53domains update-domain-nameservers \
-        --domain-name "$domain_name" \
-        --nameservers "$nameservers_json"
+    for ((i=1; i<=max_retries; i++)); do
+        check_pending_operations "$domain_name"
+        if aws route53domains update-domain-nameservers \
+            --domain-name "$domain_name" \
+            --nameservers "$nameservers_json"; then
+            echo "Updated registered nameservers for $domain_name"
+            return 0
+        else
+            echo "Failed to update nameservers. Retrying in $retry_delay seconds... (Attempt $i of $max_retries)"
+            sleep $retry_delay
+            retry_delay=$((retry_delay * 2))
+        fi
+    done
 
-    echo "Updated registered nameservers for $domain_name"
+    echo "Failed to update nameservers after $max_retries attempts."
+    return 1
 }
 
 create_or_get_hosted_zone() {
