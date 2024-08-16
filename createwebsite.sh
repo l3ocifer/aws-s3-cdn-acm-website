@@ -46,7 +46,6 @@ get_domain_and_repo() {
     export DOMAIN_NAME REPO_NAME REPO_PATH
 }
 
-# Function to setup or update the website repository
 setup_or_update_repo() {
     if [ -d "$REPO_PATH" ]; then
         echo "Repository already exists. Updating..."
@@ -63,24 +62,6 @@ setup_or_update_repo() {
     # Make scripts executable
     chmod +x scripts/*.sh
 
-    # Check if the GitHub repository exists
-    if ! curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$GITHUB_USERNAME/$REPO_NAME" | grep -q "200"; then
-        echo "Attempting to create new repository on GitHub..."
-        create_response=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GITHUB_ACCESS_TOKEN" https://api.github.com/user/repos -d '{"name":"'$REPO_NAME'", "private":true}')
-        status_code=$(echo "$create_response" | tail -n1)
-        response_body=$(echo "$create_response" | sed '$d')
-
-        if [ "$status_code" != "201" ]; then
-            echo "Failed to create GitHub repository. Status code: $status_code"
-            echo "Response: $response_body"
-            echo "The repository may already exist. Continuing with the assumption that it does."
-        else
-            echo "GitHub repository created successfully."
-        fi
-    else
-        echo "GitHub repository $REPO_NAME already exists."
-    fi
-
     # Set the new origin
     git remote set-url origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
 
@@ -96,13 +77,19 @@ setup_or_update_repo() {
     # Push changes
     echo "Pushing changes to GitHub..."
     if ! git push -u origin master; then
-        echo "Failed to push to GitHub. You may need to push manually."
-        echo "Try running: git push -u origin master"
-        echo "If you encounter issues, ensure your GitHub access token has the correct permissions."
+        echo "Failed to push to GitHub. Attempting to force push..."
+        if ! git push -u origin master --force; then
+            echo "Failed to force push to GitHub. You may need to push manually."
+            echo "Try running: git push -u origin master --force"
+            echo "If you encounter issues, ensure your GitHub access token has the correct permissions."
+        else
+            echo "Force push to GitHub successful."
+        fi
     else
         echo "Changes pushed to GitHub successfully."
     fi
 }
+
 
 # Main execution
 get_domain_and_repo

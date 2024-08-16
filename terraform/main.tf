@@ -94,6 +94,7 @@ resource "aws_route53_record" "website" {
   }
 }
 
+
 resource "aws_acm_certificate" "cert" {
   count             = var.acm_cert_exists ? 0 : 1
   domain_name       = var.domain_name
@@ -121,9 +122,9 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_acm_certificate_validation" "cert" {
-  count                   = var.acm_cert_exists ? 0 : 1
+  count                   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
   certificate_arn         = aws_acm_certificate.cert[0].arn
-  validation_record_fqdns = var.hosted_zone_exists ? null : [aws_route53_record.cert_validation[0].fqdn]
+  validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
 }
 
 resource "aws_route53_zone" "primary" {
