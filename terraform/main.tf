@@ -1,4 +1,5 @@
 
+
 provider "aws" {
   region = "us-east-1"
 }
@@ -16,7 +17,7 @@ variable "acm_cert_exists" {
 }
 
 data "aws_route53_zone" "main" {
-  name = var.domain_name
+  name = var.hosted_zone_id
 }
 
 resource "aws_route53_zone" "main" {
