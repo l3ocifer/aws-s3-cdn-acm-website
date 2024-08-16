@@ -13,7 +13,7 @@ export NEXT_TELEMETRY_DISABLED=1
 
 # Check for required commands
 for cmd in git curl aws; do
-    if ! command -v $cmd &> /dev/null; then
+    if ! command_exists $cmd; then
         echo "Error: $cmd is not installed. Please install it and try again." >&2
         exit 1
     fi
@@ -51,18 +51,18 @@ setup_or_update_repo() {
         echo "Cloning website template repository..."
         git clone "$default_repo" "$REPO_PATH"
         cd "$REPO_PATH"
+        git remote rename origin default
     fi
 
     # Ensure we have the latest changes from the default repo
-    git remote add default "$default_repo" 2>/dev/null || git remote set-url default "$default_repo"
     git fetch default
-    git merge default/master --allow-unrelated-histories -X theirs
+    git checkout -B master default/master
 
     # Make scripts executable
     chmod +x scripts/*.sh
 
-    # Set the new origin
-    git remote remove origin 2>/dev/null
+    # Set up the new origin
+    git remote remove origin 2>/dev/null || true
     git remote add origin "$target_repo"
 
     # Update domain-specific files
@@ -74,7 +74,13 @@ setup_or_update_repo() {
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
     echo "Pushing changes to GitHub..."
-    git push -u origin master --force || echo "Failed to push to GitHub. You may need to push manually."
+    if ! git push -u origin master --force; then
+        echo "Failed to push to GitHub. Creating the repository..."
+        curl -H "Authorization: token $GITHUB_ACCESS_TOKEN" \
+             -d '{"name":"'"$REPO_NAME"'", "private": true}' \
+             "https://api.github.com/user/repos"
+        git push -u origin master
+    fi
 }
 
 # Main execution
