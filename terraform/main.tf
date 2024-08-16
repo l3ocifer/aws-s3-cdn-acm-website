@@ -63,7 +63,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
     domain_name              = aws_s3_bucket.website_bucket.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.website_oac.id
-    origin_id                = local.s3_origin_id
+    origin_id                = "S3-${var.repo_name}"
   }
 
   enabled             = true
@@ -74,7 +74,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = local.s3_origin_id
+    target_origin_id = "S3-${var.repo_name}"
 
     forwarded_values {
       query_string = false
@@ -99,6 +99,18 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     acm_certificate_arn      = var.acm_cert_exists ? data.aws_acm_certificate.existing[0].arn : aws_acm_certificate.cert[0].arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
   }
 }
 
