@@ -25,28 +25,17 @@ if [ -z "${GITHUB_USERNAME:-}" ] || [ -z "${GITHUB_ACCESS_TOKEN:-}" ]; then
     exit 1
 fi
 
-LAST_DOMAIN_FILE="/tmp/last_website_domain_$$.tmp"
-
-# Function to get or prompt for domain name and repo path
-get_domain_and_repo() {
-    if [ -f "$LAST_DOMAIN_FILE" ]; then
-        LAST_DOMAIN=$(cat "$LAST_DOMAIN_FILE")
-        read -p "Use the last domain ($LAST_DOMAIN)? (y/n): " use_last
-        if [[ $use_last =~ ^[Yy]$ ]]; then
-            DOMAIN_NAME=$LAST_DOMAIN
-        else
-            read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
-        fi
+# Function to get or set the last used domain
+get_or_set_last_domain() {
+    local config_file="$HOME/.createwebsite_config"
+    if [ -f "$config_file" ]; then
+        last_domain=$(cat "$config_file")
+        read -p "Enter domain name (default: $last_domain): " DOMAIN_NAME
+        DOMAIN_NAME=${DOMAIN_NAME:-$last_domain}
     else
-        read -e -p "Enter the domain name for your website (e.g., example.com): " DOMAIN_NAME
+        read -p "Enter domain name: " DOMAIN_NAME
     fi
-    echo "$DOMAIN_NAME" > "$LAST_DOMAIN_FILE"
-    REPO_NAME=${DOMAIN_NAME%%.*}
-
-    read -e -p "Enter the path for the git repository (default: $HOME/git/$REPO_NAME): " REPO_PATH
-    REPO_PATH=${REPO_PATH:-"$HOME/git/$REPO_NAME"}
-
-    export DOMAIN_NAME REPO_NAME REPO_PATH
+    echo "$DOMAIN_NAME" > "$config_file"
 }
 
 setup_or_update_repo() {
@@ -88,26 +77,16 @@ setup_or_update_repo() {
     git push -u origin master --force || echo "Failed to push to GitHub. You may need to push manually."
 }
 
-# Function to get or set the last used domain
-get_or_set_last_domain() {
-    local config_file="$HOME/.createwebsite_config"
-    if [ -f "$config_file" ]; then
-        last_domain=$(cat "$config_file")
-        read -p "Enter domain name (default: $last_domain): " DOMAIN_NAME
-        DOMAIN_NAME=${DOMAIN_NAME:-$last_domain}
-    else
-        read -p "Enter domain name: " DOMAIN_NAME
-    fi
-    echo "$DOMAIN_NAME" > "$config_file"
-}
-
 # Main execution
 if [ "$1" == "--help" ]; then
-    show_help
+    echo "Usage: $0 [td]"
+    echo "  td: Destroy the infrastructure after setup"
     exit 0
 fi
 
 get_or_set_last_domain
+REPO_NAME=${DOMAIN_NAME%%.*}
+REPO_PATH="$HOME/git/$REPO_NAME"
 
 setup_or_update_repo
 
@@ -122,9 +101,6 @@ else
     echo "Error: main.sh not found in the scripts directory." >&2
     exit 1
 fi
-
-# Cleanup
-rm -f "$LAST_DOMAIN_FILE"
 
 echo "Website setup complete. Your repository is at https://github.com/$GITHUB_USERNAME/$REPO_NAME"
 echo "Your website should be accessible at https://$DOMAIN_NAME once DNS propagation is complete."
