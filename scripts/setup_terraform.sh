@@ -30,10 +30,24 @@ setup_backend_bucket() {
 }
 
 import_hosted_zone() {
+    if [ ! -f .hosted_zone_id ]; then
+        echo "Error: .hosted_zone_id file not found. Running create_or_get_hosted_zone again."
+        source ./scripts/setup_aws.sh
+        create_or_get_hosted_zone
+    fi
+    
     HOSTED_ZONE_ID=$(cat .hosted_zone_id)
     DOMAIN_NAME=$(cat .domain)
-    terraform import aws_route53_zone.main "${HOSTED_ZONE_ID}"
-    echo "Imported hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME} into Terraform state"
+    
+    if [ -z "$HOSTED_ZONE_ID" ]; then
+        echo "Error: Hosted zone ID is empty. Please check the .hosted_zone_id file."
+        exit 1
+    fi
+    
+    echo "Importing hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME} into Terraform state"
+    terraform import aws_route53_zone.main "${HOSTED_ZONE_ID}" || {
+        echo "Failed to import hosted zone. It may already be in the Terraform state."
+    }
 }
 
 init_apply_terraform() {

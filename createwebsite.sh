@@ -76,6 +76,13 @@ setup_or_update_repo() {
     source ./scripts/setup_aws.sh
     create_or_get_hosted_zone
 
+    # Ensure .hosted_zone_id is in the repo root
+    if [ -f .hosted_zone_id ]; then
+        cp .hosted_zone_id "$REPO_PATH/"
+    else
+        echo "Warning: .hosted_zone_id file not found after create_or_get_hosted_zone"
+    fi
+
     # Commit changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true

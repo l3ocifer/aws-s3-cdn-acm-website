@@ -52,3 +52,17 @@ log "Please allow some time for the DNS changes to propagate."
 (cd terraform && terraform output name_servers)
 
 log "Project setup complete."
+
+setup_aws() {
+    log "Setting up AWS resources..."
+    source ./scripts/setup_aws.sh
+    create_or_get_hosted_zone
+}
+
+main() {
+    get_domain_name
+    setup_aws
+    setup_terraform
+    setup_site
+    deploy_website
+}

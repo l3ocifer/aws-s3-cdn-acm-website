@@ -32,7 +32,6 @@ check_aws_cli_version() {
 
 create_or_get_hosted_zone() {
     DOMAIN_NAME=$(cat .domain)
-    REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
     HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
     if [[ -z "$HOSTED_ZONE_ID" ]]; then
         echo "No hosted zone found for ${DOMAIN_NAME}. Creating a new one."
@@ -41,7 +40,9 @@ create_or_get_hosted_zone() {
     else
         echo "Existing hosted zone found for ${DOMAIN_NAME} with ID: ${HOSTED_ZONE_ID}"
     fi
+    HOSTED_ZONE_ID=$(echo "$HOSTED_ZONE_ID" | sed 's/^\/hostedzone\///')
     echo "${HOSTED_ZONE_ID}" > .hosted_zone_id
+    echo "Hosted zone ID saved to .hosted_zone_id file"
 }
 
 check_acm_certificate() {
