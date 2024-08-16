@@ -42,25 +42,8 @@ setup_nextjs_app() {
     mkdir -p src
     jq -n --arg content "$(cat ../.content)" '[{"title": "Welcome", "content": $content}]' > src/content.json
 
-    # Update src/app/layout.tsx and src/app/page.tsx
-    # (Keep the existing content for these files)
-
-    # Update favicon and other icons
-    # (Keep the existing content for this section)
-
-    npm install
-    build_nextjs_app
-}
-
-build_nextjs_app() {
-    cd next-app
-    npm run build
-    cd ..
-    mv next-app/out public
-}
-
-setup_nextjs_app
-
+    # Update src/app/layout.tsx
+    cat << EOF > src/app/layout.tsx
 import './globals.css'
 import { Inter } from 'next/font/google'
 
@@ -160,7 +143,16 @@ EOF
         cp public/logo.png public/icon.png
     fi
 
-    build_nextjs_app
+    npm install
+    cd ..
+}
+
+build_nextjs_app() {
+    cd next-app
+    npm run build
+    cd ..
+    mv next-app/out public
 }
 
 setup_nextjs_app
+build_nextjs_app
