@@ -40,7 +40,8 @@ handle_content_file() {
 handle_logo_file() {
     local logo_file=".logo"
     if [ ! -f "$logo_file" ]; then
-        echo "https://example.com/default-logo.png" > "$logo_file"
+        create_default_logo "public/default-logo.png"
+        echo "public/default-logo.png" > "$logo_file"
     fi
 }
 

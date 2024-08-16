@@ -246,17 +246,16 @@ def setup_nextjs(domain_name, description):
         f.truncate()
 
     # Update next.config.mjs
-    next_config = f"""
-/** @type {{import('next').NextConfig}} */
-const nextConfig = {{
+    next_config = """
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: 'export',
-  distDir: '../public',
-  images: {{
+  images: {
     unoptimized: true,
-  }},
-}};
+  },
+};
 
-export default nextConfig;
+module.exports = nextConfig;
 """
     with open('next.config.mjs', 'w') as f:
         f.write(next_config)
@@ -522,10 +521,11 @@ def handle_content_file(domain_name):
             f.write(f"Welcome to {domain_name}")
 
 def handle_logo_file():
-    if not os.path.exists('.logo'):
-        print("No .logo file found. Using default logo.")
-        with open('.logo', 'w') as f:
-            f.write("default")
+    local logo_file=".logo"
+    if [ ! -f "$logo_file" ]; then
+        create_default_logo "public/default-logo.png"
+        echo "public/default-logo.png" > "$logo_file"
+    fi
 
 def create_default_logo(domain_name, output_file):
     try:

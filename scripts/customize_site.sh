@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 source ./scripts/utils.sh
 
@@ -14,6 +14,10 @@ color_themes=(
     ["violet"]="primary:#8A2BE2,secondary:#FFFF00,accent:#FF4500,text:#FFFFFF,background:#333333"
 )
 
+# Add this near the top of the file, after the color_themes declaration
+declare -A colors
+
+# Modify the choose_color_theme function to ensure colors are set
 choose_color_theme() {
     echo "Choose a primary color theme:"
     select color in "${!color_themes[@]}"; do
@@ -153,14 +157,10 @@ get_image() {
 
 # Function to create a simple default logo
 create_default_logo() {
-    local default_image="$1"
+    local output_path="$1"
     local site_name=$(grep '^siteName=' .config | cut -d'=' -f2)
-    
-    # Use ImageMagick to create a simple text-based logo
     convert -size 200x100 xc:transparent -fill "${colors[primary]}" \
-        -gravity center -pointsize 24 -annotate 0 "$site_name" "$default_image"
-    
-    log "Created default logo: $default_image"
+        -gravity center -pointsize 24 -annotate 0 "$site_name" "$output_path"
 }
 
 # Function to get favicon from logo

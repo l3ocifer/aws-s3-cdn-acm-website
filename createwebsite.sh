@@ -26,6 +26,12 @@ if [ -z "${GITHUB_USERNAME:-}" ] || [ -z "${GITHUB_ACCESS_TOKEN:-}" ]; then
     exit 1
 fi
 
+# Check if AWS CLI is configured
+if ! aws sts get-caller-identity &>/dev/null; then
+    echo "Error: AWS CLI is not configured. Please run 'aws configure' and try again." >&2
+    exit 1
+fi
+
 # Function to get or set the last used domain
 get_or_set_last_domain() {
     local config_file="$HOME/.createwebsite_config"

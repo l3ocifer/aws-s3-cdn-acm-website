@@ -59,7 +59,7 @@ main() {
     get_domain_name
 
     # Check for name modifier
-    if [[ "$1" == "name="* ]]; then
+    if [ $# -gt 0 ] && [[ "$1" == "name="* ]]; then
         NAME="${1#name=}"
     else
         NAME=""
