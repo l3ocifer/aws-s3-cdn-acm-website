@@ -78,11 +78,6 @@ data "aws_route53_zone" "existing" {
   private_zone = false
 }
 
-resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
-  name  = var.domain_name
-}
-
 resource "aws_route53_record" "website" {
   zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
   name    = var.domain_name
@@ -111,7 +106,7 @@ data "aws_acm_certificate" "existing" {
 }
 
 resource "aws_route53_record" "cert_validation" {
-  count   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
+  count   = var.acm_cert_exists ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
   zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
@@ -120,7 +115,12 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_acm_certificate_validation" "cert" {
-  count                   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
+  count                   = var.acm_cert_exists ? 0 : 1
   certificate_arn         = aws_acm_certificate.cert[0].arn
   validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
+}
+
+resource "aws_route53_zone" "primary" {
+  count = var.hosted_zone_exists ? 0 : 1
+  name  = var.domain_name
 }
