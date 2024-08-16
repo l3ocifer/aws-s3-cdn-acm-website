@@ -2,15 +2,15 @@
 
 set -e
 
-# Get the domain name from the command line argument
-domain="$1"
+# Use the DOMAIN_NAME environment variable
+domain="$DOMAIN_NAME"
 
 if [ -z "$domain" ]; then
     echo "Error: Domain name not provided"
     exit 1
 fi
 
-echo "Setting up Next.js app..."
+echo "Setting up Next.js app for domain: $domain"
 
 # Create Next.js app
 npx create-next-app@latest next-app --typescript --eslint --tailwind --app --src-dir --import-alias "@/*" --use-npm
@@ -39,7 +39,7 @@ cd ..
 cd ..
 ./scripts/customize_site.sh "$domain"
 
-echo "Next.js app setup complete!"
+echo "Next.js app setup complete for $domain!"
 
 handle_content_file() {
     local content_file=".content"

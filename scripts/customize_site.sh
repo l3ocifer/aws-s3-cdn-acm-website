@@ -4,13 +4,15 @@ set -e
 
 echo "Starting site customization..."
 
-# Get the domain name from the command line argument
-domain="$1"
+# Use the DOMAIN_NAME environment variable
+domain="$DOMAIN_NAME"
 
 if [ -z "$domain" ]; then
     echo "Error: Domain name not provided"
     exit 1
 fi
+
+echo "Customizing site for domain: $domain"
 
 # Choose color theme
 echo "Choose a primary color theme:"
