@@ -23,6 +23,9 @@ get_domain_name() {
     export REPO_NAME
 }
 
+# Call the function to set DOMAIN_NAME and REPO_NAME
+get_domain_name
+
 # Cleanup function
 cleanup() {
     echo "Cleaning up..."
@@ -56,8 +59,6 @@ remove_name_greeting() {
 
 # Main execution
 main() {
-    get_domain_name
-
     # Check for name modifier
     if [ $# -gt 0 ] && [[ "$1" == "name="* ]]; then
         NAME="${1#name=}"

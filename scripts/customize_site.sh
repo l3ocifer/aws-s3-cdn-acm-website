@@ -32,24 +32,26 @@ done
 
 echo "Generating site content..."
 
-# Update tailwind.config.js with selected theme if it exists
-if [ -f "next-app/tailwind.config.js" ]; then
-    sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
-    sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
+# Update tailwind.config.ts with selected theme if it exists
+if [ -f "next-app/tailwind.config.ts" ]; then
+    sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.ts && rm next-app/tailwind.config.ts.bak
+    sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.ts && rm next-app/tailwind.config.ts.bak
+    echo "Updated tailwind.config.ts with selected theme and mode."
 else
-    echo "tailwind.config.js not found. Skipping theme update."
+    echo "tailwind.config.ts not found. Skipping theme update."
 fi
 
-# Update content in page.js if it exists
-if [ -f "next-app/src/app/page.js" ]; then
+# Update content in page.tsx if it exists
+if [ -f "next-app/src/app/page.tsx" ]; then
     site_name="$domain"
     site_description="Welcome to $domain"
 
     # Use sed with different delimiters to avoid issues with slashes in variables
-    sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
-    sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
+    sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
+    sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
+    echo "Updated page.tsx with custom content."
 else
-    echo "page.js not found. Skipping content update."
+    echo "page.tsx not found. Skipping content update."
 fi
 
 echo "Site customization complete!"
