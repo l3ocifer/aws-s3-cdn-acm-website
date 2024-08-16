@@ -51,6 +51,14 @@ resource "aws_s3_bucket_public_access_block" "website_bucket" {
   restrict_public_buckets = true
 }
 
+resource "aws_cloudfront_origin_access_control" "default" {
+  name                              = "OAC ${var.domain_name}"
+  description                       = "Origin Access Control for ${var.domain_name}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 data "aws_iam_policy_document" "s3_policy" {
   statement {
     actions   = ["s3:GetObject"]
@@ -160,12 +168,4 @@ output "cloudfront_distribution_id" {
 
 output "name_servers" {
   value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
-}
-
-resource "aws_cloudfront_origin_access_control" "default" {
-  name                              = "OAC ${var.domain_name}"
-  description                       = "Origin Access Control for ${var.domain_name}"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
 }
