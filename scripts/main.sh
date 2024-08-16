@@ -45,7 +45,7 @@ for module in install_requirements setup_aws setup_terraform setup_site deploy_w
         error "Required script not found: ./scripts/${module}.sh"
     fi
     log "Executing $module module..."
-    if ! source "./scripts/${module}.sh"; then
+    if ! bash "./scripts/${module}.sh"; then
         error "Failed to execute $module module"
     fi
 done

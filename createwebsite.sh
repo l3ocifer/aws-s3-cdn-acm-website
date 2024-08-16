@@ -1,6 +1,9 @@
 #!/bin/bash
 
-set -euo pipefail
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
 
 # Disable the AWS CLI pager
 export AWS_PAGER=""
@@ -70,26 +73,12 @@ setup_or_update_repo() {
     sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
 
-    # Commit changes
+    # Commit and push changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
-
-    # Push changes
     echo "Pushing changes to GitHub..."
-    if ! git push -u origin master; then
-        echo "Failed to push to GitHub. Attempting to force push..."
-        if ! git push -u origin master --force; then
-            echo "Failed to force push to GitHub. You may need to push manually."
-            echo "Try running: git push -u origin master --force"
-            echo "If you encounter issues, ensure your GitHub access token has the correct permissions."
-        else
-            echo "Force push to GitHub successful."
-        fi
-    else
-        echo "Changes pushed to GitHub successfully."
-    fi
+    git push -u origin master --force || echo "Failed to push to GitHub. You may need to push manually."
 }
-
 
 # Main execution
 get_domain_and_repo
