@@ -47,12 +47,12 @@ create_or_get_hosted_zone() {
 
 check_acm_certificate() {
     DOMAIN_NAME=$(cat .domain)
-    ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
-    if [[ -n "$ACM_CERT_ARN" ]]; then
-        echo "ACM certificate for ${DOMAIN_NAME} already exists."
+    ACM_CERT_ARN=$(aws acm list-certificates --region us-east-1 --query "CertificateSummaryList[?DomainName=='$DOMAIN_NAME'].CertificateArn" --output text)
+    if [ -n "$ACM_CERT_ARN" ]; then
+        echo "ACM certificate for $DOMAIN_NAME already exists."
         echo "true" > .acm_cert_exists
     else
-        echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created by Terraform."
+        echo "ACM certificate for $DOMAIN_NAME does not exist."
         echo "false" > .acm_cert_exists
     fi
 }

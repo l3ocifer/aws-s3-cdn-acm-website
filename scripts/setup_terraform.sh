@@ -51,12 +51,9 @@ import_hosted_zone() {
 }
 
 init_apply_terraform() {
-    (
-        cd terraform
-        terraform init
-        import_hosted_zone
-        terraform apply -auto-approve
-    )
+    terraform init
+    import_hosted_zone
+    terraform apply -auto-approve
 }
 
 setup_terraform_vars

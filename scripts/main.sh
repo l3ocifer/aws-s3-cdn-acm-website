@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -euo pipefail
 
 # Colors for output
@@ -23,7 +22,6 @@ get_domain_name() {
     export DOMAIN_NAME
     export REPO_NAME
 }
-
 
 get_domain_name
 

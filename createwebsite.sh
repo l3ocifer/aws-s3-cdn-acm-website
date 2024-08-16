@@ -52,7 +52,7 @@ setup_or_update_repo() {
         echo "Repository already exists. Updating..."
         cd "$REPO_PATH"
         git fetch origin
-        git reset --hard origin/master
+        git reset --hard origin/master || git reset --hard origin/main
     else
         echo "Cloning website template repository..."
         git clone "$default_repo" "$REPO_PATH"
@@ -62,7 +62,7 @@ setup_or_update_repo() {
 
     # Ensure we have the latest changes from the default repo
     git fetch default
-    git checkout -B master default/master
+    git checkout -B master default/master || git checkout -B main default/main
 
     # Make scripts executable
     chmod +x scripts/*.sh
@@ -78,7 +78,7 @@ setup_or_update_repo() {
 
     # Ensure .hosted_zone_id is in the repo root
     if [ -f .hosted_zone_id ]; then
-        cp .hosted_zone_id "$REPO_PATH/"
+        cp .hosted_zone_id "$REPO_PATH/" 2>/dev/null || true
     else
         echo "Warning: .hosted_zone_id file not found after create_or_get_hosted_zone"
     fi
@@ -99,7 +99,7 @@ setup_or_update_repo() {
 
     # Push changes
     echo "Pushing changes to GitHub..."
-    git push -u origin master --force
+    git push -u origin master --force || git push -u origin main --force
 }
 
 setup_or_update_repo
