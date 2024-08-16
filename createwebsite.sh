@@ -71,6 +71,7 @@ setup_or_update_repo() {
     echo "$DOMAIN_NAME" > .domain
     sed -i.bak "s/REPO_NAME_PLACEHOLDER/$REPO_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
+    cp .domain terraform/
 
     # Create or get hosted zone ID
     source ./scripts/setup_aws.sh
