@@ -37,6 +37,28 @@ init_apply_terraform() {
     )
 }
 
+check_hosted_zone() {
+    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
+    if [[ -n "$HOSTED_ZONE_ID" ]]; then
+        echo "Hosted zone for ${DOMAIN_NAME} already exists."
+        HOSTED_ZONE_EXISTS=true
+    else
+        echo "No hosted zone found for ${DOMAIN_NAME}. It will be created."
+        HOSTED_ZONE_EXISTS=false
+    fi
+}
+
+check_acm_certificate() {
+    ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
+    if [[ -n "$ACM_CERT_ARN" ]]; then
+        echo "ACM certificate for ${DOMAIN_NAME} already exists."
+        ACM_CERT_EXISTS=true
+    else
+        echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created."
+        ACM_CERT_EXISTS=false
+    fi
+}
+
 setup_terraform_vars
 setup_backend_bucket
 init_apply_terraform

@@ -1,132 +1,76 @@
-provider "aws" {
-  region = "us-east-1"
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"; }
+error() { echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2; exit 1; }
+warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"; }
+
+# Function to get domain name
+get_domain_name() {
+    if [ ! -f .domain ]; then
+        error "Domain file (.domain) not found. Please run createwebsite.sh first."
+    fi
+    DOMAIN_NAME=$(cat .domain)
+    export DOMAIN_NAME
 }
 
-variable "domain_name" {
-  type = string
+# Check for destroy flag
+DESTROY=false
+if [ "${1:-}" = "td" ]; then
+    DESTROY=true
+fi
+
+get_domain_name
+
+# Cleanup function
+cleanup() {
+    echo "Cleaning up..."
+    rm -f terraform/.terraform/terraform.tfstate*
 }
 
-variable "hosted_zone_exists" {
-  type = bool
-}
+# Set trap for cleanup
+trap cleanup EXIT
 
-variable "acm_cert_exists" {
-  type = bool
-}
+# Source and execute the individual modules
+for module in install_requirements setup_aws setup_terraform setup_site deploy_website; do
+    if [ ! -f "./scripts/${module}.sh" ]; then
+        error "Required script not found: ./scripts/${module}.sh"
+    fi
+    log "Executing $module module..."
+    if ! source "./scripts/${module}.sh"; then
+        error "Failed to execute $module module"
+    fi
+done
 
-resource "aws_s3_bucket" "website" {
-  bucket = var.domain_name
-  force_destroy = true
-}
+if [ "$DESTROY" = true ]; then
+    log "Destroying infrastructure for ${DOMAIN_NAME}..."
+    if ! (cd terraform && terraform destroy -auto-approve -var-file=terraform.tfvars); then
+        error "Failed to destroy infrastructure"
+    fi
 
-resource "aws_s3_bucket_website_configuration" "website" {
-  bucket = aws_s3_bucket.website.id
-  index_document {
-    suffix = "index.html"
-  }
-  error_document {
-    key = "404.html"
-  }
-}
+    # Destroy the backend S3 bucket
+    bucket_name="${DOMAIN_NAME}-tf-state"
+    log "Removing backend S3 bucket: $bucket_name"
+    if ! aws s3 rm "s3://$bucket_name" --recursive; then
+        warn "Failed to remove contents of S3 bucket: $bucket_name"
+    fi
+    if ! aws s3api delete-bucket --bucket "$bucket_name"; then
+        warn "Failed to delete S3 bucket: $bucket_name"
+    fi
 
-resource "aws_cloudfront_distribution" "website_distribution" {
-  origin {
-    domain_name = aws_s3_bucket.website.bucket_regional_domain_name
-    origin_id   = "S3-${var.domain_name}"
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
+    log "Infrastructure and backend destroyed successfully."
+else
+    log "Deployment complete! Your website should be accessible at https://${DOMAIN_NAME}"
+    log "Please allow some time for the DNS changes to propagate."
+    (cd terraform && terraform output name_servers)
 
-  enabled             = true
-  is_ipv6_enabled     = true
-  default_root_object = "index.html"
-  aliases             = [var.domain_name]
-
-  default_cache_behavior {
-    target_origin_id       = "S3-${var.domain_name}"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-    min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    acm_certificate_arn      = var.acm_cert_exists ? data.aws_acm_certificate.existing[0].arn : aws_acm_certificate.cert[0].arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
-  }
-}
-
-data "aws_route53_zone" "existing" {
-  count        = var.hosted_zone_exists ? 1 : 0
-  name         = var.domain_name
-  private_zone = false
-}
-
-resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
-  name  = var.domain_name
-}
-
-resource "aws_route53_record" "website" {
-  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
-  name    = var.domain_name
-  type    = "A"
-  alias {
-    name                   = aws_cloudfront_distribution.website_distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.website_distribution.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-resource "aws_acm_certificate" "cert" {
-  count             = var.acm_cert_exists ? 0 : 1
-  domain_name       = var.domain_name
-  validation_method = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-data "aws_acm_certificate" "existing" {
-  count       = var.acm_cert_exists ? 1 : 0
-  domain      = var.domain_name
-  statuses    = ["ISSUED"]
-  most_recent = true
-}
-
-resource "aws_route53_record" "cert_validation" {
-  count   = var.acm_cert_exists ? 0 : 1
-  name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
-  type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
-  records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
-  ttl     = 60
-}
-
-resource "aws_acm_certificate_validation" "cert" {
-  count                   = var.acm_cert_exists ? 0 : 1
-  certificate_arn         = aws_acm_certificate.cert[0].arn
-  validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
-}
+    log "Project setup complete."
+fi

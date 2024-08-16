@@ -16,6 +16,7 @@ variable "acm_cert_exists" {
 
 resource "aws_s3_bucket" "website" {
   bucket = var.domain_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_website_configuration" "website" {
@@ -77,14 +78,9 @@ resource "aws_cloudfront_distribution" "website_distribution" {
 }
 
 data "aws_route53_zone" "existing" {
-  count        = var.hosted_zone_exists ? 1 : 0
-  name         = var.domain_name
-  private_zone = false
-}
-
-resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
+  count = var.hosted_zone_exists ? 1 : 0
   name  = var.domain_name
+  private_zone = false
 }
 
 resource "aws_route53_record" "website" {
@@ -116,10 +112,10 @@ data "aws_acm_certificate" "existing" {
 }
 
 resource "aws_route53_record" "cert_validation" {
-  count   = var.acm_cert_exists ? 0 : 1
+  count   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
+  zone_id = aws_route53_zone.primary[0].zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }
@@ -127,5 +123,10 @@ resource "aws_route53_record" "cert_validation" {
 resource "aws_acm_certificate_validation" "cert" {
   count                   = var.acm_cert_exists ? 0 : 1
   certificate_arn         = aws_acm_certificate.cert[0].arn
-  validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
+  validation_record_fqdns = var.hosted_zone_exists ? null : [aws_route53_record.cert_validation[0].fqdn]
+}
+
+resource "aws_route53_zone" "primary" {
+  count = var.hosted_zone_exists ? 0 : 1
+  name  = var.domain_name
 }
