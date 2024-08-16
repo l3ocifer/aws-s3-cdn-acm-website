@@ -14,9 +14,12 @@ variable "acm_cert_exists" {
   type = bool
 }
 
+variable "hosted_zone_id" {
+  type = string
+}
+
 data "aws_route53_zone" "main" {
   zone_id = var.hosted_zone_id
-  private_zone = false
 }
 
 resource "aws_s3_bucket" "website" {
