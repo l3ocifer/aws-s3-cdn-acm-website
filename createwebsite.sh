@@ -62,7 +62,6 @@ setup_or_update_repo() {
         git merge default/master --allow-unrelated-histories -X theirs
     else
         echo "Cloning website template repository..."
-        mkdir -p "$REPO_PATH"
         git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_PATH"
         cd "$REPO_PATH"
     fi
