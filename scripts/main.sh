@@ -23,8 +23,6 @@ get_domain_name() {
     export REPO_NAME
 }
 
-get_domain_name
-
 # Cleanup function
 cleanup() {
     echo "Cleaning up..."
@@ -34,33 +32,30 @@ cleanup() {
 # Set trap for cleanup
 trap cleanup EXIT
 
-# Source and execute the individual modules
-for module in install_requirements setup_aws setup_terraform setup_site deploy_website; do
-    if [ ! -f "./scripts/${module}.sh" ]; then
-        error "Required script not found: ./scripts/${module}.sh"
-    fi
-    log "Executing $module module..."
-    if ! bash "./scripts/${module}.sh"; then
-        error "Failed to execute $module module"
-    fi
-done
-
-log "Deployment complete! Your website should be accessible at https://${DOMAIN_NAME}"
-log "Please allow some time for the DNS changes to propagate."
-(cd terraform && terraform output name_servers)
-
-log "Project setup complete."
-
+# Function to setup AWS resources
 setup_aws() {
     log "Setting up AWS resources..."
     source ./scripts/setup_aws.sh
     create_or_get_hosted_zone
 }
 
+# Main execution
 main() {
     get_domain_name
-    setup_aws
-    setup_terraform
-    setup_site
-    deploy_website
+
+    # Source and execute the individual modules
+    for module in install_requirements setup_aws setup_terraform setup_site deploy_website customize_site; do
+        if [ ! -f "./scripts/${module}.sh" ]; then
+            error "Required script not found: ./scripts/${module}.sh"
+        fi
+        log "Executing $module module..."
+        if ! bash "./scripts/${module}.sh"; then
+            error "Failed to execute $module module"
+        fi
+    done
+
+    log "Website creation, deployment, and customization completed successfully!"
 }
+
+# Run the main function
+main
