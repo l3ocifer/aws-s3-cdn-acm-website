@@ -114,28 +114,56 @@ get_content() {
     echo "$content"
 }
 
-# Function to get image (AI-generated or user input)
+# Function to get image (AI-generated, user input, or default)
 get_image() {
     local prompt="$1"
     local image_type="$2"
+    local default_image="next-app/public/default-logo.png"
     local image_path
 
     read -p "Do you want to use AI to generate $image_type? (y/n): " use_ai
     if [[ $use_ai == "y" ]]; then
         local image_url=$(generate_ai_image "$prompt")
         image_path="next-app/public/${image_type}.png"
-        curl -s "$image_url" -o "$image_path"
-    else
-        read -p "Enter the path to your $image_type image: " image_path
-        if [ ! -f "$image_path" ]; then
-            error "Image file not found: $image_path"
+        if curl -s "$image_url" -o "$image_path"; then
+            log "AI-generated image saved as $image_path"
+        else
+            warn "Failed to download AI-generated image. Using default."
+            image_path="$default_image"
         fi
+    else
+        read -p "Enter the path to your $image_type image (or press Enter for default): " user_image_path
+        if [ -n "$user_image_path" ] && [ -f "$user_image_path" ]; then
+            image_path="$user_image_path"
+        else
+            warn "Invalid image path or no image provided. Using default."
+            image_path="$default_image"
+        fi
+    fi
+
+    # Ensure the default image exists
+    if [ ! -f "$image_path" ]; then
+        log "Creating default logo..."
+        create_default_logo "$default_image"
+        image_path="$default_image"
     fi
 
     echo "$image_path"
 }
 
-# Function to create favicon from logo
+# Function to create a simple default logo
+create_default_logo() {
+    local default_image="$1"
+    local site_name=$(grep '^siteName=' .config | cut -d'=' -f2)
+    
+    # Use ImageMagick to create a simple text-based logo
+    convert -size 200x100 xc:transparent -fill "${colors[primary]}" \
+        -gravity center -pointsize 24 -annotate 0 "$site_name" "$default_image"
+    
+    log "Created default logo: $default_image"
+}
+
+# Function to get favicon from logo
 create_favicon() {
     local logo="$1"
     local favicon="$2"
@@ -160,7 +188,7 @@ customize_site() {
 
     # Generate logo
     log "Generating logo..."
-    local logo_path=$(get_image "Create a simple, modern logo for $site_name website, using ${color_theme} as the primary color" "logo")
+    local logo_path=$(get_image "Create a simple, modern logo for $site_name website, using ${colors[primary]} as the primary color" "logo")
     echo "$logo_path" > .logo
 
     # Generate favicon
@@ -168,15 +196,14 @@ customize_site() {
     create_favicon "$logo_path" "next-app/public/favicon.ico"
 
     # Update Next.js components
-    update_nextjs_components "$color_theme" "$mode" "$about_content"
+    update_nextjs_components "$about_content"
 
     log "Site customization completed successfully!"
 }
 
 update_nextjs_components() {
-    local color_theme="$1"
-    local mode="$2"
-    local about_content="$3"
+    local about_content="$1"
+    local logo_path=$(cat .logo)
 
     # Update globals.css with color theme and mode
     cat > next-app/src/app/globals.css << EOL
@@ -186,8 +213,10 @@ update_nextjs_components() {
 
 :root {
   --primary-color: ${colors[primary]};
-  --background-color: ${colors[background]};
+  --secondary-color: ${colors[secondary]};
+  --accent-color: ${colors[accent]};
   --text-color: ${colors[text]};
+  --background-color: ${colors[background]};
 }
 
 body {
@@ -225,52 +254,8 @@ export default function RootLayout({
 }
 EOL
 
-    # Update page.tsx
-    cat > next-app/src/app/page.tsx << EOL
-import Image from 'next/image'
-import Link from 'next/link'
-import data from '../data.json'
-
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          {data.config.description}
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <Image
-            src="/logo.png"
-            alt="{data.config.siteName} Logo"
-            width={100}
-            height={24}
-            priority
-          />
-        </div>
-      </div>
-
-      <div className="relative flex place-items-center">
-        <h1 className="text-4xl font-bold" style={{color: 'var(--primary-color)'}}>
-          {data.config.siteName}
-        </h1>
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-2 lg:text-left">
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
-          <h2 className="mb-3 text-2xl font-semibold">Welcome</h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">{data.content[0].content}</p>
-        </div>
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
-          <h2 className="mb-3 text-2xl font-semibold">About Us</h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            <Link href="/about">Learn more about us</Link>
-          </p>
-        </div>
-      </div>
-    </main>
-  )
-}
-EOL
+    # Update src/app/page.tsx to use the logo
+    sed -i "s|src=\"/logo.png\"|src=\"${logo_path}\"|" next-app/src/app/page.tsx
 
     # Create about page
     mkdir -p next-app/src/app/about
