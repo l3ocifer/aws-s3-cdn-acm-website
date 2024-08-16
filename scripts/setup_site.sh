@@ -4,7 +4,7 @@ set -euo pipefail
 handle_content_file() {
     if [ ! -f ../.content ]; then
         echo "No .content file found. Creating a default one."
-        echo "Welcome to $DOMAIN_NAME Ashlee" > ../.content
+        echo "Welcome to $DOMAIN_NAME" > ../.content
     fi
 }
 
@@ -77,7 +77,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: '${DOMAIN_NAME}',
-  description: 'Welcome to ${DOMAIN_NAME}',
+  description: 'Welcome to ${DOMAIN_NAME} Ashlee',
 }
 
 export default function RootLayout({
