@@ -39,6 +39,11 @@ get_or_set_last_domain() {
     echo "$DOMAIN_NAME" > "$config_file"
 }
 
+get_or_set_last_domain
+echo "$DOMAIN_NAME" > .domain
+REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
+REPO_PATH="$HOME/git/$REPO_NAME"
+
 setup_or_update_repo() {
     local default_repo="https://github.com/$GITHUB_USERNAME/website.git"
     local target_repo="https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$REPO_NAME.git"
@@ -62,13 +67,9 @@ setup_or_update_repo() {
     # Make scripts executable
     chmod +x scripts/*.sh
 
-    # Set up the new origin
-    git remote remove origin 2>/dev/null || true
-    git remote add origin "$target_repo"
-
     # Update domain-specific files
     echo "$DOMAIN_NAME" > .domain
-    sed -i.bak "s/DOMAIN_NAME_PLACEHOLDER/$DOMAIN_NAME/g" terraform/backend.tf
+    sed -i.bak "s/REPO_NAME_PLACEHOLDER/$REPO_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
 
     # Commit and push changes
@@ -85,31 +86,15 @@ setup_or_update_repo() {
     fi
 }
 
-# Main execution
-if [ "${1:-}" == "--help" ]; then
-    echo "Usage: $0 [td]"
-    echo "  td: Destroy the infrastructure after setup"
-    exit 0
-fi
-
-get_or_set_last_domain
-REPO_NAME="paskaie.com"
-REPO_PATH="$HOME/git/$REPO_NAME"
-
 setup_or_update_repo
 
 # Run the main setup script
 if [ -f "scripts/main.sh" ]; then
-    if [ "${1:-}" = "td" ]; then
-        ./scripts/main.sh td
-    else
-        ./scripts.main.sh
-    fi
+    ./scripts/main.sh
 else
     echo "Error: main.sh not found in the scripts directory." >&2
     exit 1
 fi
-
 
 echo "Website setup complete. Your repository is at https://github.com/$GITHUB_USERNAME/$REPO_NAME"
 echo "Your website should be accessible at https://$DOMAIN_NAME once DNS propagation is complete."

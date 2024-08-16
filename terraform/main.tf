@@ -6,7 +6,7 @@ variable "domain_name" {
   type = string
 }
 
-variable "hosted_zone_id" {
+variable "repo_name" {
   type = string
 }
 
@@ -19,7 +19,7 @@ data "aws_route53_zone" "primary" {
 }
 
 resource "aws_s3_bucket" "website" {
-  bucket = var.domain_name
+  bucket = var.repo_name
   force_destroy = true
 }
 

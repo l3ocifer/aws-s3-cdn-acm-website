@@ -4,18 +4,20 @@ set -euo pipefail
 
 setup_terraform_vars() {
     DOMAIN_NAME=$(cat .domain)
+    REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
     HOSTED_ZONE_ID=$(cat .hosted_zone_id)
     ACM_CERT_EXISTS=$(cat .acm_cert_exists)
 
     cat << EOF > terraform/terraform.tfvars
 domain_name = "${DOMAIN_NAME}"
+repo_name = "${REPO_NAME}"
 hosted_zone_id = "${HOSTED_ZONE_ID}"
 acm_cert_exists = ${ACM_CERT_EXISTS}
 EOF
 }
 
 setup_backend_bucket() {
-    local bucket_name="${DOMAIN_NAME}-tf-state"
+    local bucket_name="${REPO_NAME}-tf-state"
 
     if ! aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
         echo "Creating backend S3 bucket: $bucket_name"
