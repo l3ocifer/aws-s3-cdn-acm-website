@@ -32,15 +32,14 @@ check_aws_cli_version() {
 
 create_or_get_hosted_zone() {
     DOMAIN_NAME=$(cat .domain)
-    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
+    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text | sed 's/^\/hostedzone\///')
     if [[ -z "$HOSTED_ZONE_ID" ]]; then
         echo "No hosted zone found for ${DOMAIN_NAME}. Creating a new one."
-        HOSTED_ZONE_ID=$(aws route53 create-hosted-zone --name "${DOMAIN_NAME}" --caller-reference "$(date +%s)" --query "HostedZone.Id" --output text)
+        HOSTED_ZONE_ID=$(aws route53 create-hosted-zone --name "${DOMAIN_NAME}" --caller-reference "$(date +%s)" --query "HostedZone.Id" --output text | sed 's/^\/hostedzone\///')
         echo "Created new hosted zone with ID: ${HOSTED_ZONE_ID}"
     else
         echo "Existing hosted zone found for ${DOMAIN_NAME} with ID: ${HOSTED_ZONE_ID}"
     fi
-    HOSTED_ZONE_ID=$(echo "$HOSTED_ZONE_ID" | sed 's/^\/hostedzone\///')
     echo "${HOSTED_ZONE_ID}" > .hosted_zone_id
     echo "Hosted zone ID saved to .hosted_zone_id file"
 }

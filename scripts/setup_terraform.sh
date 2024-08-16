@@ -45,13 +45,9 @@ import_hosted_zone() {
     fi
     
     echo "Using hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME}"
-    # Only import if we're creating a new hosted zone
-    if [ "$HOSTED_ZONE_ID" == "new" ]; then
-        echo "Importing new hosted zone into Terraform state"
-        (cd terraform && terraform import aws_route53_zone.main[0] "${HOSTED_ZONE_ID}") || {
-            echo "Failed to import hosted zone. It may already be in the Terraform state."
-        }
-    fi
+    (cd terraform && terraform import aws_route53_zone.main[0] "${HOSTED_ZONE_ID}") || {
+        echo "Failed to import hosted zone. It may already be in the Terraform state."
+    }
 }
 
 init_apply_terraform() {

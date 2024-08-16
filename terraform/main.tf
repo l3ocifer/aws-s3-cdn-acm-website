@@ -51,18 +51,19 @@ resource "aws_s3_bucket_public_access_block" "website_bucket" {
   restrict_public_buckets = true
 }
 
-resource "aws_cloudfront_origin_access_identity" "oai" {
-  comment = "OAI for ${var.domain_name}"
-}
-
 data "aws_iam_policy_document" "s3_policy" {
   statement {
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.website_bucket.arn}/*"]
 
     principals {
-      type        = "AWS"
-      identifiers = [aws_cloudfront_origin_access_identity.oai.iam_arn]
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.website_distribution.arn]
     }
   }
 }
@@ -74,12 +75,9 @@ resource "aws_s3_bucket_policy" "website_bucket" {
 
 resource "aws_cloudfront_distribution" "website_distribution" {
   origin {
-    domain_name = aws_s3_bucket.website_bucket.bucket_regional_domain_name
-    origin_id   = "S3-${var.repo_name}"
-
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
-    }
+    domain_name              = aws_s3_bucket.website_bucket.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.default.id
+    origin_id                = "S3-${var.repo_name}"
   }
 
   enabled             = true
@@ -162,4 +160,12 @@ output "cloudfront_distribution_id" {
 
 output "name_servers" {
   value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
+}
+
+resource "aws_cloudfront_origin_access_control" "default" {
+  name                              = "OAC ${var.domain_name}"
+  description                       = "Origin Access Control for ${var.domain_name}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
