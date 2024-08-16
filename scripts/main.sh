@@ -1,21 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"; }
-error() { echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2; exit 1; }
-warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"; }
-
 # Function to get domain name
 get_domain_name() {
     if [ ! -f .domain ]; then
-        error "Domain file (.domain) not found. Please run createwebsite.sh first."
+        echo "ERROR: Domain file (.domain) not found. Please run createwebsite.sh first." >&2
+        exit 1
     fi
     DOMAIN_NAME=$(cat .domain)
     REPO_NAME=$(echo "$DOMAIN_NAME" | sed -E 's/\.[^.]+$//')
@@ -37,7 +27,7 @@ trap cleanup EXIT
 
 # Function to setup AWS resources
 setup_aws() {
-    log "Setting up AWS resources..."
+    echo "Setting up AWS resources..."
     source ./scripts/setup_aws.sh
     create_or_get_hosted_zone
 }
@@ -46,15 +36,26 @@ setup_aws() {
 add_name_greeting() {
     local name="$1"
     local greeting="Hi ${name}!"
-    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" next-app/src/app/page.tsx
-    log "Added greeting for ${name}"
+    local file="next-app/src/app/page.tsx"
+    
+    if [ -f "$file" ]; then
+        sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" "$file"
+        echo "Added greeting for ${name}"
+    else
+        echo "WARNING: $file not found. Cannot add greeting." >&2
+    fi
 }
 
 # Function to remove name greeting
 remove_name_greeting() {
-    local site_name=$(grep '^siteName=' .config | cut -d'=' -f2)
-    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${site_name}</h1>|" next-app/src/app/page.tsx
-    log "Removed custom greeting"
+    local file="next-app/src/app/page.tsx"
+    
+    if [ -f "$file" ]; then
+        sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">Welcome to ${DOMAIN_NAME}</h1>|" "$file"
+        echo "Removed custom greeting"
+    else
+        echo "WARNING: $file not found. Cannot remove greeting." >&2
+    fi
 }
 
 # Main execution
@@ -69,11 +70,13 @@ main() {
     # Source and execute the individual modules
     for module in install_requirements setup_aws setup_terraform setup_site; do
         if [ ! -f "./scripts/${module}.sh" ]; then
-            error "Required script not found: ./scripts/${module}.sh"
+            echo "ERROR: Required script not found: ./scripts/${module}.sh" >&2
+            exit 1
         fi
-        log "Executing $module module..."
+        echo "Executing $module module..."
         if ! bash "./scripts/${module}.sh"; then
-            error "Failed to execute $module module"
+            echo "ERROR: Failed to execute $module module" >&2
+            exit 1
         fi
     done
 
@@ -84,16 +87,24 @@ main() {
         remove_name_greeting
     fi
 
+    # Build the Next.js app
+    echo "Building Next.js app..."
+    cd next-app
+    npm run build
+    cd ..
+
     # Deploy website
     if [ ! -f "./scripts/deploy_website.sh" ]; then
-        error "Required script not found: ./scripts/deploy_website.sh"
+        echo "ERROR: Required script not found: ./scripts/deploy_website.sh" >&2
+        exit 1
     fi
-    log "Deploying website..."
+    echo "Deploying website..."
     if ! bash "./scripts/deploy_website.sh"; then
-        error "Failed to deploy website"
+        echo "ERROR: Failed to deploy website" >&2
+        exit 1
     fi
 
-    log "Website creation, customization, and deployment completed successfully!"
+    echo "Website creation, customization, and deployment completed successfully!"
 }
 
 # Run the main function with all script arguments
