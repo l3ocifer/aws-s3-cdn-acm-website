@@ -14,40 +14,52 @@ fi
 
 echo "Customizing site for domain: $domain"
 
-# Choose color theme
+colors=("yellow" "violet" "orange" "blue" "red" "indigo" "green")
 echo "Choose a primary color theme:"
-select color in "yellow" "violet" "orange" "blue" "red" "indigo" "green"; do
+select color in "${colors[@]}"; do
     if [[ -n $color ]]; then
         break
+    else
+        echo "Invalid selection. Please try again."
     fi
 done
 
-# Choose mode
+modes=("light" "dark")
 echo "Choose a mode:"
-select mode in "light" "dark"; do
+select mode in "${modes[@]}"; do
     if [[ -n $mode ]]; then
         break
+    else
+        echo "Invalid selection. Please try again."
     fi
 done
 
 echo "Generating site content..."
 
-# Update tailwind.config.ts with selected theme if it exists
-if [ -f "next-app/tailwind.config.ts" ]; then
-    sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.ts && rm next-app/tailwind.config.ts.bak
-    sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.ts && rm next-app/tailwind.config.ts.bak
-    echo "Updated tailwind.config.ts with selected theme and mode."
-else
-    echo "tailwind.config.ts not found. Skipping theme update."
-fi
+# Update tailwind.config.ts
+config_file="next-app/tailwind.config.ts"
+awk '
+/extend: \{\}/ {
+    print "  extend: {";
+    print "    colors: {";
+    print "      primary: \"var(--color-primary)\",";
+    print "    },";
+    print "  },";
+    next
+}
+{ print }
+' "$config_file" > temp_file && mv temp_file "$config_file"
+echo "Updated tailwind.config.ts with selected theme and mode."
 
-# Update content in page.tsx if it exists
-if [ -f "next-app/src/app/page.tsx" ]; then
-    # Instead of modifying content, we'll just update the color theme
-    sed -i.bak "s/className=\".*\"/className=\"text-$color-600\"/" next-app/src/app/page.tsx && rm next-app/src/app/page.tsx.bak
-    echo "Updated page.tsx with selected color theme."
-else
-    echo "page.tsx not found. Skipping content update."
-fi
+# Update page.tsx
+page_file="next-app/src/app/page.tsx"
+awk '
+/className=\{`font-bold text-4xl text-gray-900`\}/ {
+    gsub(/text-gray-900/, "text-primary")
+}
+{ print }
+' "$page_file" > temp_file && mv temp_file "$page_file"
+echo "Updated page.tsx with selected color theme."
 
 echo "Site customization complete!"
+echo "Next.js app setup complete for $domain!"
