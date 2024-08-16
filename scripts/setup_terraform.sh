@@ -29,13 +29,19 @@ setup_backend_bucket() {
     fi
 }
 
+import_hosted_zone() {
+    HOSTED_ZONE_ID=$(cat .hosted_zone_id)
+    DOMAIN_NAME=$(cat .domain)
+    terraform import aws_route53_zone.main "${HOSTED_ZONE_ID}"
+    echo "Imported hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME} into Terraform state"
+}
+
 init_apply_terraform() {
     (
         cd terraform
-        terraform init -reconfigure -input=false
-        terraform import aws_route53_zone.primary $(cat ../.hosted_zone_id) || true
-        terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan
+        terraform init
+        import_hosted_zone
+        terraform apply -auto-approve
     )
 }
 

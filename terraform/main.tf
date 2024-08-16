@@ -14,8 +14,17 @@ variable "acm_cert_exists" {
   type = bool
 }
 
-data "aws_route53_zone" "primary" {
+data "aws_route53_zone" "main" {
   name = var.domain_name
+}
+
+resource "aws_route53_zone" "main" {
+  name = var.domain_name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [name]
+  }
 }
 
 resource "aws_s3_bucket" "website" {
@@ -77,7 +86,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
 }
 
 resource "aws_route53_record" "website" {
-  zone_id = aws_route53_zone.primary.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
   type    = "A"
   alias {
@@ -107,7 +116,7 @@ resource "aws_route53_record" "cert_validation" {
   count   = var.acm_cert_exists ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = aws_route53_zone.primary.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }
@@ -123,5 +132,5 @@ output "cloudfront_distribution_id" {
 }
 
 output "name_servers" {
-  value = aws_route53_zone.primary.name_servers
+  value = aws_route53_zone.main.name_servers
 }

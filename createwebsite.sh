@@ -72,6 +72,10 @@ setup_or_update_repo() {
     sed -i.bak "s/REPO_NAME_PLACEHOLDER/$REPO_NAME/g" terraform/backend.tf
     rm -f terraform/backend.tf.bak
 
+    # Create or get hosted zone ID
+    source ./scripts/setup_aws.sh
+    create_or_get_hosted_zone
+
     # Commit changes
     git add .
     git commit -m "Update setup for $DOMAIN_NAME" || true
