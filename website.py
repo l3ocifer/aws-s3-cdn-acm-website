@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import importlib.metadata
+
+def install_requirements():
+    required = {'boto3', 'requests', 'anthropic', 'Pillow'}
+    installed = {pkg.name for pkg in importlib.metadata.distributions()}
+    missing = required - installed
+
+    if missing:
+        print("Installing missing dependencies...")
+        python = sys.executable
+        subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+        print("Dependencies installed successfully.")
+    else:
+        print("All required dependencies are already installed.")
+
+# Run the installation check before importing the modules
+install_requirements()
+
+
 import os, subprocess, json, time, boto3, requests, anthropic, shutil, mimetypes
 from botocore.exceptions import ClientError
 from PIL import Image, ImageDraw, ImageFont

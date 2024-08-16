@@ -4,7 +4,7 @@ set -euo pipefail
 handle_content_file() {
     if [ ! -f ../.content ]; then
         echo "No .content file found. Creating a default one."
-        echo "Welcome to $DOMAIN_NAME" > ../.content
+        echo "Welcome to $DOMAIN_NAME Ashlee" > ../.content
     fi
 }
 
