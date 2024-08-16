@@ -43,14 +43,14 @@ setup_aws() {
 add_name_greeting() {
     local name="$1"
     local greeting="Hi ${name}!"
-    sed -i '' "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" next-app/src/app/page.tsx
+    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" next-app/src/app/page.tsx
     log "Added greeting for ${name}"
 }
 
 # Function to remove name greeting
 remove_name_greeting() {
     local site_name=$(grep '^siteName=' .config | cut -d'=' -f2)
-    sed -i '' "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${site_name}</h1>|" next-app/src/app/page.tsx
+    sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${site_name}</h1>|" next-app/src/app/page.tsx
     log "Removed custom greeting"
 }
 
