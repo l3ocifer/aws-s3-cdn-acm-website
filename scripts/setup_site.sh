@@ -47,6 +47,7 @@ setup_nextjs_app() {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  distDir: '../public',
   images: {
     unoptimized: true,
   },
@@ -182,7 +183,6 @@ build_nextjs_app() {
     cd next-app
     npm run build
     cd ..
-    mv next-app/out public
 }
 
 setup_nextjs_app
