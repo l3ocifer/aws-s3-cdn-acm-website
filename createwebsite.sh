@@ -50,27 +50,31 @@ get_domain_and_repo() {
 }
 
 setup_or_update_repo() {
+    local default_repo="https://github.com/$GITHUB_USERNAME/website.git"
+    local target_repo="https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+
     if [ -d "$REPO_PATH" ]; then
         echo "Repository already exists. Updating..."
         cd "$REPO_PATH"
         git fetch origin
         git reset --hard origin/master
-        
-        # Fetch and merge changes from the default repo
-        git remote add default "https://github.com/$GITHUB_USERNAME/website.git" || true
-        git fetch default
-        git merge default/master --allow-unrelated-histories -X theirs
     else
         echo "Cloning website template repository..."
-        git clone "https://github.com/$GITHUB_USERNAME/website.git" "$REPO_PATH"
+        git clone "$default_repo" "$REPO_PATH"
         cd "$REPO_PATH"
     fi
+
+    # Ensure we have the latest changes from the default repo
+    git remote add default "$default_repo" 2>/dev/null || git remote set-url default "$default_repo"
+    git fetch default
+    git merge default/master --allow-unrelated-histories -X theirs
 
     # Make scripts executable
     chmod +x scripts/*.sh
 
     # Set the new origin
-    git remote set-url origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+    git remote remove origin 2>/dev/null
+    git remote add origin "$target_repo"
 
     # Update domain-specific files
     echo "$DOMAIN_NAME" > .domain
@@ -84,8 +88,27 @@ setup_or_update_repo() {
     git push -u origin master --force || echo "Failed to push to GitHub. You may need to push manually."
 }
 
+# Function to get or set the last used domain
+get_or_set_last_domain() {
+    local config_file="$HOME/.createwebsite_config"
+    if [ -f "$config_file" ]; then
+        last_domain=$(cat "$config_file")
+        read -p "Enter domain name (default: $last_domain): " DOMAIN_NAME
+        DOMAIN_NAME=${DOMAIN_NAME:-$last_domain}
+    else
+        read -p "Enter domain name: " DOMAIN_NAME
+    fi
+    echo "$DOMAIN_NAME" > "$config_file"
+}
+
 # Main execution
-get_domain_and_repo
+if [ "$1" == "--help" ]; then
+    show_help
+    exit 0
+fi
+
+get_or_set_last_domain
+
 setup_or_update_repo
 
 # Run the main setup script
