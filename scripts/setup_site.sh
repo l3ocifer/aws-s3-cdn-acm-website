@@ -12,31 +12,37 @@ fi
 
 echo "Setting up Next.js app for domain: $domain"
 
-# Create Next.js app
-npx create-next-app@latest next-app --typescript --eslint --tailwind --app --src-dir --import-alias "@/*" --use-npm
+# Check if next-app directory exists
+if [ -d "next-app" ]; then
+    echo "next-app directory already exists. Updating existing app..."
+    cd next-app
 
-cd next-app || exit
+    # Update dependencies
+    npm install
+    npm install @headlessui/react @heroicons/react
 
-# Handle content, logo, and config
-handle_content_file
-handle_config_file
+    # Update source files
+    cp -R ../src/* src/
 
-# Create data.json with content and config
-mkdir -p src
-jq -n \
-        --arg content "$(cat ../.content)" \
-        --arg siteName "$domain" \
-        --arg description "Welcome to $domain" \
-        '{
-            "content": [{"title": "Welcome", "content": $content}],
-            "config": {"siteName": $siteName, "description": $description}
-        }' > src/data.json
+    cd ..
+else
+    # Create Next.js app
+    npx create-next-app@latest next-app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 
-# Update Next.js components
-update_nextjs_components
+    # Change to the next-app directory
+    cd next-app
 
-cd ..
-cd ..
+    # Install additional dependencies
+    npm install @headlessui/react @heroicons/react
+
+    # Copy the content of the src directory
+    cp -R ../src/* src/
+
+    # Return to the parent directory
+    cd ..
+fi
+
+# Run the customize_site script with the domain name
 ./scripts/customize_site.sh "$domain"
 
 echo "Next.js app setup complete for $domain!"
