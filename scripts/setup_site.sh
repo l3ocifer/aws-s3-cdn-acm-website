@@ -22,13 +22,23 @@ else
     echo ".config file already exists"
 fi
 
-# Handle .content file
-content_file=".content"
-if [ ! -f "$content_file" ]; then
-    echo "Welcome to your new website!" > "$content_file"
-    echo "Created .content file"
+# Handle data.json file
+data_file="next-app/src/data.json"
+if [ ! -f "$data_file" ]; then
+    echo '{
+  "config": {
+    "description": "Welcome to '"${domain}"'"
+  },
+  "content": [
+    {
+      "title": "Welcome",
+      "content": "Welcome to your new website!"
+    }
+  ]
+}' > "$data_file"
+    echo "Created data.json file"
 else
-    echo ".content file already exists"
+    echo "data.json file already exists"
 fi
 
 # Check if next-app directory exists
