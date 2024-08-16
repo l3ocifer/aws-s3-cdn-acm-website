@@ -16,10 +16,18 @@ variable "acm_cert_exists" {
 
 variable "hosted_zone_id" {
   type = string
+  default = ""
 }
 
 data "aws_route53_zone" "main" {
-  zone_id = var.hosted_zone_id
+  name = var.domain_name
+  private_zone = false
+
+  count = var.hosted_zone_id == "" ? 1 : 0
+}
+
+locals {
+  hosted_zone_id = var.hosted_zone_id != "" ? var.hosted_zone_id : try(data.aws_route53_zone.main[0].zone_id, "")
 }
 
 resource "aws_route53_zone" "main" {
@@ -90,7 +98,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
 }
 
 resource "aws_route53_record" "website" {
-  zone_id = data.aws_route53_zone.main.zone_id
+  zone_id = local.hosted_zone_id
   name    = var.domain_name
   type    = "A"
   alias {
@@ -120,7 +128,7 @@ resource "aws_route53_record" "cert_validation" {
   count   = var.acm_cert_exists ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = data.aws_route53_zone.main.zone_id
+  zone_id = local.hosted_zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }

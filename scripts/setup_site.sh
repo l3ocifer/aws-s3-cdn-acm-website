@@ -92,7 +92,7 @@ export default function Home() {
           <code className="font-mono font-bold">${DOMAIN_NAME}</code>
         </p>
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-
+          <a
             className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
             href="https://${DOMAIN_NAME}"
             target="_blank"
@@ -130,8 +130,8 @@ export default function Home() {
 }
 EOF
 
-    # Replace placeholders in page.tsx
-    sed -i'' "s/\${DOMAIN_NAME}/$DOMAIN_NAME/g" src/app/page.tsx
+    # Replace placeholders in page.tsx using perl instead of sed
+    perl -pi -e "s/\\\${DOMAIN_NAME}/$DOMAIN_NAME/g" src/app/page.tsx
 
     # Update favicon and other icons
     mkdir -p public
