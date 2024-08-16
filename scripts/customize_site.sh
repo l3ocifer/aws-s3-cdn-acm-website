@@ -19,26 +19,11 @@ check_and_install_imagemagick() {
     fi
 }
 
-# Function to get favicon from logo
+# Function to create favicon
 create_favicon() {
     local logo="$1"
     local favicon="$2"
     magick convert "$logo" -resize 32x32 "$favicon"
-}
-
-# Function to handle logo file
-handle_logo_file() {
-    local logo_file=".logo"
-    if [ ! -f "$logo_file" ]; then
-        create_default_logo "public/default-logo.png"
-        echo "public/default-logo.png" > "$logo_file"
-    fi
-}
-
-# Function to create default logo
-create_default_logo() {
-    local output_path="$1"
-    magick -size 200x200 xc:white -font Arial -pointsize 40 -fill black -gravity center -annotate 0 "Default Logo" "$output_path"
 }
 
 # Main execution starts here
@@ -64,12 +49,9 @@ done
 
 echo "Generating site content..."
 
-# Handle logo file
-handle_logo_file
-
 # Generate favicon
-logo_path=$(cat .logo)
-create_favicon "$logo_path" "public/favicon.ico"
+logo_path="next-app/public/logo.png"
+create_favicon "$logo_path" "next-app/public/favicon.ico"
 
 echo "Generating favicon..."
 
