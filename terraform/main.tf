@@ -22,6 +22,15 @@ data "aws_route53_zone" "main" {
   zone_id = var.hosted_zone_id
 }
 
+resource "aws_route53_zone" "main" {
+  name = data.aws_route53_zone.main.name
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [name]
+  }
+}
+
 resource "aws_s3_bucket" "website" {
   bucket = var.repo_name
   force_destroy = true

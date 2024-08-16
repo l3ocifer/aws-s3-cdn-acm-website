@@ -44,7 +44,15 @@ import_hosted_zone() {
         exit 1
     fi
     
-    echo "Hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME} will be used in Terraform"
+    echo "Checking if hosted zone is already in Terraform state..."
+    if ! (cd terraform && terraform state list | grep -q aws_route53_zone.main); then
+        echo "Importing hosted zone ${HOSTED_ZONE_ID} for ${DOMAIN_NAME} into Terraform state"
+        (cd terraform && terraform import aws_route53_zone.main "${HOSTED_ZONE_ID}") || {
+            echo "Failed to import hosted zone. It may already be in the Terraform state."
+        }
+    else
+        echo "Hosted zone is already in Terraform state."
+    fi
 }
 
 init_apply_terraform() {
