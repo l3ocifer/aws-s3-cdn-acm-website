@@ -30,17 +30,17 @@ check_aws_cli_version() {
     fi
 }
 
-check_hosted_zone() {
+create_or_get_hosted_zone() {
     DOMAIN_NAME=$(cat .domain)
     HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "${DOMAIN_NAME}." --query "HostedZones[?Name == '${DOMAIN_NAME}.'].Id" --output text)
-    if [[ -n "$HOSTED_ZONE_ID" ]]; then
-        echo "Hosted zone for ${DOMAIN_NAME} already exists."
-        HOSTED_ZONE_EXISTS=true
+    if [[ -z "$HOSTED_ZONE_ID" ]]; then
+        echo "No hosted zone found for ${DOMAIN_NAME}. Creating a new one."
+        HOSTED_ZONE_ID=$(aws route53 create-hosted-zone --name "${DOMAIN_NAME}" --caller-reference "$(date +%s)" --query "HostedZone.Id" --output text)
+        echo "Created new hosted zone with ID: ${HOSTED_ZONE_ID}"
     else
-        echo "No hosted zone found for ${DOMAIN_NAME}. It will be created."
-        HOSTED_ZONE_EXISTS=false
+        echo "Existing hosted zone found for ${DOMAIN_NAME} with ID: ${HOSTED_ZONE_ID}"
     fi
-    export HOSTED_ZONE_EXISTS
+    echo "${HOSTED_ZONE_ID}" > .hosted_zone_id
 }
 
 check_acm_certificate() {
@@ -48,16 +48,15 @@ check_acm_certificate() {
     ACM_CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='${DOMAIN_NAME}'].CertificateArn" --output text)
     if [[ -n "$ACM_CERT_ARN" ]]; then
         echo "ACM certificate for ${DOMAIN_NAME} already exists."
-        ACM_CERT_EXISTS=true
+        echo "true" > .acm_cert_exists
     else
-        echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created."
-        ACM_CERT_EXISTS=false
+        echo "No ACM certificate found for ${DOMAIN_NAME}. It will be created by Terraform."
+        echo "false" > .acm_cert_exists
     fi
-    export ACM_CERT_EXISTS
 }
 
 # Main execution
 check_aws_cli_version
 setup_aws_credentials
-check_hosted_zone
+create_or_get_hosted_zone
 check_acm_certificate

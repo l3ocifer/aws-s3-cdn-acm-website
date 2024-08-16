@@ -6,23 +6,17 @@ variable "domain_name" {
   type = string
 }
 
-variable "hosted_zone_exists" {
-  type = bool
+variable "hosted_zone_id" {
+  type = string
 }
 
 variable "acm_cert_exists" {
   type = bool
 }
 
-data "aws_route53_zone" "existing" {
-  count = var.hosted_zone_exists ? 1 : 0
-  name  = var.domain_name
-  private_zone = false
-}
-
 resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
-  name  = var.domain_name
+  name = var.domain_name
+  # This resource will be imported, so Terraform won't try to create it
 }
 
 resource "aws_s3_bucket" "website" {
@@ -84,7 +78,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
 }
 
 resource "aws_route53_record" "website" {
-  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
+  zone_id = aws_route53_zone.primary.zone_id
   name    = var.domain_name
   type    = "A"
   alias {
@@ -114,7 +108,7 @@ resource "aws_route53_record" "cert_validation" {
   count   = var.acm_cert_exists ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
+  zone_id = aws_route53_zone.primary.zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }
@@ -130,5 +124,5 @@ output "cloudfront_distribution_id" {
 }
 
 output "name_servers" {
-  value = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].name_servers : aws_route53_zone.primary[0].name_servers
+  value = aws_route53_zone.primary.name_servers
 }
