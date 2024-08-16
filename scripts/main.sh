@@ -24,6 +24,7 @@ get_domain_name() {
     export REPO_NAME
 }
 
+
 get_domain_name
 
 # Cleanup function
@@ -36,15 +37,15 @@ cleanup() {
 trap cleanup EXIT
 
 # Source and execute the individual modules
-main() {
-    get_domain_name
-    setup_aws
-    setup_terraform
-    setup_site
-    deploy_website
-}
-
-main
+for module in install_requirements setup_aws setup_terraform setup_site deploy_website; do
+    if [ ! -f "./scripts/${module}.sh" ]; then
+        error "Required script not found: ./scripts/${module}.sh"
+    fi
+    log "Executing $module module..."
+    if ! bash "./scripts/${module}.sh"; then
+        error "Failed to execute $module module"
+    fi
+done
 
 log "Deployment complete! Your website should be accessible at https://${DOMAIN_NAME}"
 log "Please allow some time for the DNS changes to propagate."
