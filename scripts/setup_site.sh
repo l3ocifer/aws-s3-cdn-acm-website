@@ -181,5 +181,3 @@ export default function Home() {
 }
 EOL
 }
-
-setup_nextjs_app
