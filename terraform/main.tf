@@ -151,11 +151,8 @@ resource "aws_route53_record" "website" {
   }
 }
 
-data "aws_acm_certificate" "existing" {
-  count       = var.acm_cert_exists ? 1 : 0
-  domain      = var.domain_name
-  statuses    = ["ISSUED"]
-  most_recent = true
+output "name_servers" {
+  value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
 }
 
 resource "aws_acm_certificate" "cert" {
@@ -165,6 +162,13 @@ resource "aws_acm_certificate" "cert" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+data "aws_acm_certificate" "existing" {
+  count       = var.acm_cert_exists ? 1 : 0
+  domain      = var.domain_name
+  statuses    = ["ISSUED"]
+  most_recent = true
 }
 
 resource "aws_route53_record" "cert_validation" {
@@ -184,8 +188,4 @@ resource "aws_acm_certificate_validation" "cert" {
 
 output "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.website_distribution.id
-}
-
-output "name_servers" {
-  value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
 }

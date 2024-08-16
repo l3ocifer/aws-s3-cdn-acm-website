@@ -38,24 +38,34 @@ add_name_greeting() {
     local greeting="Hi ${name}!"
     local file="next-app/src/app/page.tsx"
     
-    if [ -f "$file" ]; then
-        sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" "$file"
-        echo "Added greeting for ${name}"
-    else
+    if [ ! -f "$file" ]; then
         echo "WARNING: $file not found. Cannot add greeting." >&2
+        return 0
     fi
+    
+    if ! sed -i.bak "s|<h1[^>]*>[^<]*</h1>|<h1 class=\"text-4xl font-bold\">${greeting}</h1>|" "$file"; then
+        echo "ERROR: Failed to add greeting to $file" >&2
+        return 1
+    fi
+    
+    echo "Added greeting for ${name}"
 }
 
 # Function to remove name greeting
 remove_name_greeting() {
     local file="next-app/src/app/page.tsx"
     
-    if [ -f "$file" ]; then
-        sed -i "s|<h1 class=\"text-4xl font-bold\">.*</h1>|<h1 class=\"text-4xl font-bold\">Welcome to ${DOMAIN_NAME}</h1>|" "$file"
-        echo "Removed custom greeting"
-    else
+    if [ ! -f "$file" ]; then
         echo "WARNING: $file not found. Cannot remove greeting." >&2
+        return 0
     fi
+    
+    if ! sed -i.bak "s|<h1[^>]*>[^<]*</h1>|<h1 class=\"text-4xl font-bold\">Welcome to ${DOMAIN_NAME}</h1>|" "$file"; then
+        echo "ERROR: Failed to remove greeting from $file" >&2
+        return 1
+    fi
+    
+    echo "Removed custom greeting"
 }
 
 # Main execution
@@ -82,9 +92,13 @@ main() {
 
     # Add or remove name greeting
     if [ -n "$NAME" ]; then
-        add_name_greeting "$NAME"
+        if ! add_name_greeting "$NAME"; then
+            echo "WARNING: Failed to add name greeting. Continuing with deployment." >&2
+        fi
     else
-        remove_name_greeting
+        if ! remove_name_greeting; then
+            echo "WARNING: Failed to remove name greeting. Continuing with deployment." >&2
+        fi
     fi
 
     # Build the Next.js app
