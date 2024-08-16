@@ -16,13 +16,15 @@ handle_logo_file() {
 }
 
 setup_nextjs_app() {
-    DOMAIN_NAME=${DOMAIN_NAME:-$(cat ../.domain)}
-
-    if [ ! -d "next-app" ]; then
-        echo "Creating Next.js app..."
-        npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
+    if [ -d "next-app" ]; then
+        echo "Next.js app already set up. Skipping setup."
+        return
     fi
 
+    DOMAIN_NAME=${DOMAIN_NAME:-$(cat ../.domain)}
+
+    echo "Creating Next.js app..."
+    npx create-next-app@latest next-app --typescript --eslint --use-npm --tailwind --src-dir --app --import-alias "@/*" --no-git --yes
     cd next-app || exit 1
 
     # Ensure package.json exists
@@ -32,7 +34,7 @@ setup_nextjs_app() {
     fi
 
     # Update package.json scripts
-    npm pkg set scripts.build="next build && next export"
+    npm pkg set scripts.build="next build"
 
     handle_content_file
     handle_logo_file
@@ -47,7 +49,14 @@ setup_nextjs_app() {
     # (Keep the existing content for this section)
 
     npm install
+    build_nextjs_app
+}
+
+build_nextjs_app() {
+    cd next-app
     npm run build
+    cd ..
+    mv next-app/out public
 }
 
 setup_nextjs_app
@@ -151,7 +160,7 @@ EOF
         cp public/logo.png public/icon.png
     fi
 
-    npm run build
+    build_nextjs_app
 }
 
 setup_nextjs_app
