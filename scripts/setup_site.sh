@@ -1,34 +1,45 @@
 #!/bin/bash
 
-setup_nextjs_app() {
-    log "Setting up Next.js app..."
-    
-    # Create Next.js app
-    npx create-next-app@latest next-app --typescript --eslint --tailwind --app --src-dir --import-alias "@/*" --use-npm
-    
-    cd next-app || exit
-    
-    # Handle content, logo, and config
-    handle_content_file
-    handle_logo_file
-    handle_config_file
+set -e
 
-    # Create data.json with content and config
-    mkdir -p src
-    jq -n \
+# Get the domain name from the command line argument
+domain="$1"
+
+if [ -z "$domain" ]; then
+    echo "Error: Domain name not provided"
+    exit 1
+fi
+
+echo "Setting up Next.js app..."
+
+# Create Next.js app
+npx create-next-app@latest next-app --typescript --eslint --tailwind --app --src-dir --import-alias "@/*" --use-npm
+
+cd next-app || exit
+
+# Handle content, logo, and config
+handle_content_file
+handle_config_file
+
+# Create data.json with content and config
+mkdir -p src
+jq -n \
         --arg content "$(cat ../.content)" \
-        --arg siteName "$(grep '^siteName=' ../.config | cut -d'=' -f2)" \
-        --arg description "$(grep '^description=' ../.config | cut -d'=' -f2)" \
+        --arg siteName "$domain" \
+        --arg description "Welcome to $domain" \
         '{
             "content": [{"title": "Welcome", "content": $content}],
             "config": {"siteName": $siteName, "description": $description}
         }' > src/data.json
 
-    # Update Next.js components
-    update_nextjs_components
+# Update Next.js components
+update_nextjs_components
 
-    cd ..
-}
+cd ..
+cd ..
+./scripts/customize_site.sh "$domain"
+
+echo "Next.js app setup complete!"
 
 handle_content_file() {
     local content_file=".content"

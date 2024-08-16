@@ -4,8 +4,13 @@ set -e
 
 echo "Starting site customization..."
 
-# Get the domain name from the .domain file
-domain=$(cat ../.domain)
+# Get the domain name from the command line argument
+domain="$1"
+
+if [ -z "$domain" ]; then
+    echo "Error: Domain name not provided"
+    exit 1
+fi
 
 # Choose color theme
 echo "Choose a primary color theme:"
@@ -26,8 +31,8 @@ done
 echo "Generating site content..."
 
 # Update tailwind.config.js with selected theme
-sed -i '' "s/colors\.blue/colors.$color/" next-app/tailwind.config.js
-sed -i '' "s/'light'/'$mode'/" next-app/tailwind.config.js
+sed -i.bak "s/colors\.blue/colors.$color/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
+sed -i.bak "s/'light'/'$mode'/" next-app/tailwind.config.js && rm next-app/tailwind.config.js.bak
 
 # Comment out image-related operations
 : <<'END_COMMENT'
@@ -42,11 +47,11 @@ find next-app/public -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png"
 END_COMMENT
 
 # Update content in page.js
-site_name=$domain
+site_name="$domain"
 site_description="Welcome to $domain"
 
 # Use sed with different delimiters to avoid issues with slashes in variables
-sed -i '' "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.js
-sed -i '' "s|Get started by editing|$site_description|" next-app/src/app/page.js
+sed -i.bak "s|Welcome to Next.js!|Welcome to $site_name|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
+sed -i.bak "s|Get started by editing|$site_description|" next-app/src/app/page.js && rm next-app/src/app/page.js.bak
 
 echo "Site customization complete!"
