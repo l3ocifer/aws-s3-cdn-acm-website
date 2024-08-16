@@ -40,12 +40,10 @@ resource "aws_cloudfront_distribution" "website_distribution" {
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
-
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
   aliases             = [var.domain_name]
-
   default_cache_behavior {
     target_origin_id       = "S3-${var.domain_name}"
     viewer_protocol_policy = "redirect-to-https"
@@ -55,7 +53,6 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     min_ttl                = 0
     default_ttl            = 3600
     max_ttl                = 86400
-
     forwarded_values {
       query_string = false
       cookies {
@@ -63,13 +60,11 @@ resource "aws_cloudfront_distribution" "website_distribution" {
       }
     }
   }
-
   restrictions {
     geo_restriction {
       restriction_type = "none"
     }
   }
-
   viewer_certificate {
     acm_certificate_arn      = var.acm_cert_exists ? data.aws_acm_certificate.existing[0].arn : aws_acm_certificate.cert[0].arn
     ssl_support_method       = "sni-only"
@@ -83,6 +78,11 @@ data "aws_route53_zone" "existing" {
   private_zone = false
 }
 
+resource "aws_route53_zone" "primary" {
+  count = var.hosted_zone_exists ? 0 : 1
+  name  = var.domain_name
+}
+
 resource "aws_route53_record" "website" {
   zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
   name    = var.domain_name
@@ -94,12 +94,10 @@ resource "aws_route53_record" "website" {
   }
 }
 
-
 resource "aws_acm_certificate" "cert" {
   count             = var.acm_cert_exists ? 0 : 1
   domain_name       = var.domain_name
   validation_method = "DNS"
-
   lifecycle {
     create_before_destroy = true
   }
@@ -116,7 +114,7 @@ resource "aws_route53_record" "cert_validation" {
   count   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = aws_route53_zone.primary[0].zone_id
+  zone_id = var.hosted_zone_exists ? data.aws_route53_zone.existing[0].zone_id : aws_route53_zone.primary[0].zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }
@@ -125,9 +123,4 @@ resource "aws_acm_certificate_validation" "cert" {
   count                   = (var.acm_cert_exists || var.hosted_zone_exists) ? 0 : 1
   certificate_arn         = aws_acm_certificate.cert[0].arn
   validation_record_fqdns = [aws_route53_record.cert_validation[0].fqdn]
-}
-
-resource "aws_route53_zone" "primary" {
-  count = var.hosted_zone_exists ? 0 : 1
-  name  = var.domain_name
 }
