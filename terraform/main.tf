@@ -20,23 +20,22 @@ variable "hosted_zone_id" {
 }
 
 data "aws_route53_zone" "main" {
-  name = var.domain_name
+  zone_id = var.hosted_zone_id
+  name    = var.domain_name
   private_zone = false
 
   count = var.hosted_zone_id == "" ? 1 : 0
 }
 
 locals {
-  hosted_zone_id = var.hosted_zone_id != "" ? var.hosted_zone_id : try(data.aws_route53_zone.main[0].zone_id, "")
+  zone_id = var.hosted_zone_id != "" ? var.hosted_zone_id : try(data.aws_route53_zone.main[0].zone_id, "")
+  zone_name = var.hosted_zone_id != "" ? var.domain_name : try(data.aws_route53_zone.main[0].name, "")
 }
 
 resource "aws_route53_zone" "main" {
-  name = data.aws_route53_zone.main.name
+  name = local.zone_name
 
-  lifecycle {
-    prevent_destroy = true
-    ignore_changes = [name]
-  }
+  count = var.hosted_zone_id == "" ? 1 : 0
 }
 
 resource "aws_s3_bucket" "website" {
@@ -98,7 +97,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
 }
 
 resource "aws_route53_record" "website" {
-  zone_id = local.hosted_zone_id
+  zone_id = local.zone_id
   name    = var.domain_name
   type    = "A"
   alias {
@@ -128,7 +127,7 @@ resource "aws_route53_record" "cert_validation" {
   count   = var.acm_cert_exists ? 0 : 1
   name    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_name
   type    = tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_type
-  zone_id = local.hosted_zone_id
+  zone_id = local.zone_id
   records = [tolist(aws_acm_certificate.cert[0].domain_validation_options)[0].resource_record_value]
   ttl     = 60
 }
@@ -144,5 +143,5 @@ output "cloudfront_distribution_id" {
 }
 
 output "name_servers" {
-  value = data.aws_route53_zone.main.name_servers
+  value = var.hosted_zone_id != "" ? [] : try(aws_route53_zone.main[0].name_servers, [])
 }
