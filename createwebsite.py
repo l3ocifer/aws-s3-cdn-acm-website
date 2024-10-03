@@ -62,10 +62,8 @@ def setup_local_repo(repo_name, template_repo_url):
     if os.path.exists(repo_path):
         logging.info(f"Repository already exists at '{repo_path}'. Updating...")
         os.chdir(repo_path)
-        try:
-            subprocess.run(['git', 'fetch', 'origin'], check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            logging.warning(f"Failed to fetch from origin: {e.stderr}")
+        subprocess.run(['git', 'fetch', 'origin'], check=True)
+        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
     else:
         # Clone the template repo
         logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
@@ -93,7 +91,7 @@ def setup_local_repo(repo_name, template_repo_url):
     
     # Push to the new origin
     try:
-        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True, capture_output=True, text=True)
+        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
         logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to push to origin: {e.stderr}")
@@ -128,11 +126,13 @@ def main():
     if not domain_name:
         domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
     os.environ['DOMAIN_NAME'] = domain_name
+    logging.info(f"Using domain name: {domain_name}")
 
     repo_name = os.getenv('REPO_NAME')
     if not repo_name:
         repo_name = sanitize_domain_name(domain_name)
     os.environ['REPO_NAME'] = repo_name
+    logging.info(f"Using repository name: {repo_name}")
 
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
@@ -149,9 +149,12 @@ def main():
     template_repo_url = 'git@github.com:l3ocifer/website.git'  # Template repo SSH URL
     setup_local_repo(repo_name, template_repo_url)
     
+    logging.info("Starting main setup process...")
     # Run main script
     from scripts.main import main as setup_main
     setup_main()
+    
+    logging.info(f"Website setup complete for {domain_name}")
 
 if __name__ == '__main__':
     main()
