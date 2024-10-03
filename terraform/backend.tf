@@ -1,7 +1,9 @@
+# File: terraform/backend.tf
+
 terraform {
   backend "s3" {
-    bucket = "REPO_NAME_PLACEHOLDER-tf-state"
-    key    = "terraform/state"
+    bucket = "YOUR_BUCKET_NAME"  # This will be replaced by setup_terraform.py
+    key    = "terraform.tfstate"
     region = "us-east-1"
   }
 }
