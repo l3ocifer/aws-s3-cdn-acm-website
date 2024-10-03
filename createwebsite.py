@@ -6,6 +6,11 @@ import sys
 import subprocess
 import requests
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
@@ -26,13 +31,13 @@ def sanitize_domain_name(domain_name):
 def create_github_repo(repo_name):
     """Create a new private GitHub repository."""
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-    GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
-    if not GITHUB_USERNAME or not GITHUB_TOKEN:
-        logging.error("GitHub username and token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_TOKEN'.")
+    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
+    if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
+        logging.error("GitHub username and access token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_ACCESS_TOKEN'.")
         sys.exit(1)
     api_url = 'https://api.github.com/user/repos'
     headers = {
-        'Authorization': f'token {GITHUB_TOKEN}',
+        'Authorization': f'token {GITHUB_ACCESS_TOKEN}',
         'Accept': 'application/vnd.github.v3+json'
     }
     data = {
@@ -85,10 +90,12 @@ def create_env_file():
     DOMAIN_NAME = os.getenv('DOMAIN_NAME')
     REPO_NAME = os.getenv('REPO_NAME')
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
+    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
     content = f"""# Environment Variables
 DOMAIN_NAME={DOMAIN_NAME}
 REPO_NAME={REPO_NAME}
 GITHUB_USERNAME={GITHUB_USERNAME}
+GITHUB_ACCESS_TOKEN={GITHUB_ACCESS_TOKEN}
 AWS_PROFILE=default
 """
     with open('.env', 'w') as f:
@@ -97,16 +104,24 @@ AWS_PROFILE=default
 
 def main():
     """Entry point for creating a new website."""
-    # Get domain name
-    domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
-    os.environ['DOMAIN_NAME'] = domain_name
-    repo_name = sanitize_domain_name(domain_name)
-    os.environ['REPO_NAME'] = repo_name
+    # Load environment variables from .env
+    load_dotenv()
     
+    # Get domain name
+    domain_name = os.getenv('DOMAIN_NAME')
+    if not domain_name:
+        domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
+    os.environ['DOMAIN_NAME'] = domain_name
+
+    repo_name = os.getenv('REPO_NAME')
+    if not repo_name:
+        repo_name = sanitize_domain_name(domain_name)
+    os.environ['REPO_NAME'] = repo_name
+
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-    GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
-    if not GITHUB_USERNAME or not GITHUB_TOKEN:
-        logging.error("GitHub username and token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_TOKEN'.")
+    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
+    if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
+        logging.error("GitHub username and access token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_ACCESS_TOKEN'.")
         sys.exit(1)
     
     # Create GitHub repository

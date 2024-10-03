@@ -24,8 +24,10 @@ def main():
     if not domain_name:
         domain_name = input("Enter the domain name: ")
         os.environ['DOMAIN_NAME'] = domain_name
-    repo_name = domain_name.replace('.', '-')
-    os.environ['REPO_NAME'] = repo_name
+    repo_name = os.getenv('REPO_NAME')
+    if not repo_name:
+        repo_name = domain_name.replace('.', '-')
+        os.environ['REPO_NAME'] = repo_name
     
     # Install requirements
     install_requirements()

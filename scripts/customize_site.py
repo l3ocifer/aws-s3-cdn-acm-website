@@ -2,6 +2,10 @@
 
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -16,16 +20,24 @@ def customize_site(domain_name):
         logging.error("Tailwind config or page.tsx not found.")
         return
 
-    # Prompt for color theme
-    colors = ["yellow", "violet", "orange", "blue", "red", "indigo", "green"]
-    print("Choose a primary color theme:")
-    for idx, color in enumerate(colors, start=1):
-        print(f"{idx}. {color}")
-    color_choice = int(input("Enter the number of your choice: ")) - 1
-    if color_choice not in range(len(colors)):
-        logging.error("Invalid color choice.")
-        return
-    color = colors[color_choice]
+    # Get color theme from environment variable or prompt
+    color = os.getenv('COLOR_THEME')
+    if not color:
+        # Prompt for color theme
+        colors = ["yellow", "violet", "orange", "blue", "red", "indigo", "green"]
+        print("Choose a primary color theme:")
+        for idx, c in enumerate(colors, start=1):
+            print(f"{idx}. {c}")
+        color_choice = int(input("Enter the number of your choice: ")) - 1
+        if color_choice not in range(len(colors)):
+            logging.error("Invalid color choice.")
+            return
+        color = colors[color_choice]
+        os.environ['COLOR_THEME'] = color
+        # Update .env file
+        update_env_file('COLOR_THEME', color)
+    else:
+        logging.info(f"Using existing color theme: {color}")
 
     # Update tailwind.config.js
     with open(config_file, 'r') as f:
@@ -55,6 +67,26 @@ def customize_site(domain_name):
     logging.info("Updated page.tsx with selected color theme.")
 
     logging.info("Site customization complete!")
+
+def update_env_file(key, value):
+    """Update or add a key-value pair in the .env file."""
+    env_file = '.env'
+    if not os.path.exists(env_file):
+        with open(env_file, 'w') as f:
+            f.write(f"{key}={value}\n")
+        return
+    with open(env_file, 'r') as f:
+        lines = f.readlines()
+    with open(env_file, 'w') as f:
+        found = False
+        for line in lines:
+            if line.startswith(f"{key}="):
+                f.write(f"{key}={value}\n")
+                found = True
+            else:
+                f.write(line)
+        if not found:
+            f.write(f"{key}={value}\n")
 
 if __name__ == '__main__':
     domain_name = os.getenv('DOMAIN_NAME')
