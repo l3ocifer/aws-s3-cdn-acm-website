@@ -5,6 +5,7 @@ import logging
 import sys
 import subprocess
 import requests
+import shutil
 
 from dotenv import load_dotenv
 
@@ -62,8 +63,15 @@ def setup_local_repo(repo_name, template_repo_url):
     if os.path.exists(repo_path):
         logging.info(f"Repository already exists at '{repo_path}'. Updating...")
         os.chdir(repo_path)
-        subprocess.run(['git', 'fetch', 'origin'], check=True)
-        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
+        try:
+            subprocess.run(['git', 'fetch', 'origin'], check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logging.warning(f"Failed to fetch from origin: {e.stderr}")
+            logging.info("Attempting to set up the repository from scratch...")
+            os.chdir('..')
+            shutil.rmtree(repo_path)
+            subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
+            os.chdir(repo_path)
     else:
         # Clone the template repo
         logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
@@ -91,7 +99,7 @@ def setup_local_repo(repo_name, template_repo_url):
     
     # Push to the new origin
     try:
-        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
+        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True, capture_output=True, text=True)
         logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to push to origin: {e.stderr}")
