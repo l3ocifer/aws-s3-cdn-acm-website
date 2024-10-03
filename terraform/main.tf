@@ -21,9 +21,12 @@ data "aws_route53_zone" "main" {
   zone_id = var.hosted_zone_id
 }
 
+# Get AWS account ID
+data "aws_caller_identity" "current" {}
+
 # S3 bucket for the website
 resource "aws_s3_bucket" "website_bucket" {
-  bucket = var.repo_name
+  bucket = "${var.repo_name}-${data.aws_caller_identity.current.account_id}"
   acl    = "private"
 
   tags = {
@@ -31,33 +34,53 @@ resource "aws_s3_bucket" "website_bucket" {
   }
 }
 
-# S3 bucket policy
-resource "aws_s3_bucket_policy" "website_bucket_policy" {
-  bucket = aws_s3_bucket.website_bucket.id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "AllowCloudFrontServicePrincipalReadOnly",
-        Effect    = "Allow",
-        Principal = {
-          AWS = aws_cloudfront_origin_access_identity.oai.iam_arn
-        },
-        Action   = "s3:GetObject",
-        Resource = "${aws_s3_bucket.website_bucket.arn}/*"
-      }
-    ]
-  })
+# CloudFront Origin Access Control (OAC)
+resource "aws_cloudfront_origin_access_control" "oac" {
+  name                                = "${var.repo_name}-oac"
+  description                         = "OAC for ${var.repo_name}"
+  origin_access_control_origin_type   = "s3"
+  signing_behavior                    = "always"
+  signing_protocol                    = "sigv4"
 }
 
-# CloudFront Origin Access Identity
-resource "aws_cloudfront_origin_access_identity" "oai" {
-  comment = "OAI for ${var.repo_name}"
+# ACM Certificate
+resource "aws_acm_certificate" "cert" {
+  domain_name               = var.domain_name
+  validation_method         = "DNS"
+  subject_alternative_names = ["*.${var.domain_name}"]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Route53 DNS Validation Records
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
+}
+
+# ACM Certificate Validation
+resource "aws_acm_certificate_validation" "cert_validation" {
+  certificate_arn         = aws_acm_certificate.cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
 }
 
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "website_distribution" {
+  depends_on = [aws_acm_certificate_validation.cert_validation]
+
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "Distribution for ${var.domain_name}"
@@ -67,9 +90,7 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     domain_name = aws_s3_bucket.website_bucket.bucket_regional_domain_name
     origin_id   = "S3-${aws_s3_bucket.website_bucket.id}"
 
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
-    }
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
 
   default_cache_behavior {
@@ -97,13 +118,40 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn      = aws_acm_certificate.cert.arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2019"
   }
 
   aliases = [var.domain_name]
 }
 
-# Route53 Record
+# S3 bucket policy
+resource "aws_s3_bucket_policy" "website_bucket_policy" {
+  bucket = aws_s3_bucket.website_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontServicePrincipalReadOnly"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.website_bucket.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.website_distribution.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Route53 Record for domain
 resource "aws_route53_record" "website_alias" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = var.domain_name

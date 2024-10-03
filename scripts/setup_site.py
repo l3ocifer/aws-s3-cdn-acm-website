@@ -4,6 +4,10 @@ import os
 import subprocess
 import logging
 from customize_site import customize_site  # Import the new module
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

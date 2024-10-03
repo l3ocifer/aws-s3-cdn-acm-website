@@ -6,11 +6,6 @@ import sys
 import subprocess
 import requests
 
-from dotenv import load_dotenv
-
-# Load environment variables from .env
-load_dotenv()
-
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
@@ -69,6 +64,9 @@ def setup_local_repo(repo_name, template_repo_url):
     # Change directory to the repo
     os.chdir(repo_path)
     
+    # Create .env file with necessary variables
+    create_env_file()
+    
     # Check out the main branch
     subprocess.run(['git', 'checkout', '-B', 'main'], check=True)
     
@@ -81,6 +79,21 @@ def setup_local_repo(repo_name, template_repo_url):
     # Push to the new origin
     subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
     logging.info(f"Set up local repository and pushed to GitHub repository '{repo_name}'.")
+
+def create_env_file():
+    """Create an .env file with necessary environment variables."""
+    DOMAIN_NAME = os.getenv('DOMAIN_NAME')
+    REPO_NAME = os.getenv('REPO_NAME')
+    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
+    content = f"""# Environment Variables
+DOMAIN_NAME={DOMAIN_NAME}
+REPO_NAME={REPO_NAME}
+GITHUB_USERNAME={GITHUB_USERNAME}
+AWS_PROFILE=default
+"""
+    with open('.env', 'w') as f:
+        f.write(content)
+    logging.info("Created .env file with environment variables.")
 
 def main():
     """Entry point for creating a new website."""

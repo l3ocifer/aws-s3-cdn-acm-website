@@ -5,6 +5,10 @@ import subprocess
 import os
 import logging
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

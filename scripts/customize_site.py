@@ -2,7 +2,6 @@
 
 import os
 import logging
-import shutil
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -28,17 +27,6 @@ def customize_site(domain_name):
         return
     color = colors[color_choice]
 
-    # Prompt for mode
-    modes = ["light", "dark"]
-    print("Choose a mode:")
-    for idx, mode in enumerate(modes, start=1):
-        print(f"{idx}. {mode}")
-    mode_choice = int(input("Enter the number of your choice: ")) - 1
-    if mode_choice not in range(len(modes)):
-        logging.error("Invalid mode choice.")
-        return
-    mode = modes[mode_choice]
-
     # Update tailwind.config.js
     with open(config_file, 'r') as f:
         config_content = f.read()
@@ -53,7 +41,7 @@ def customize_site(domain_name):
 
     with open(config_file, 'w') as f:
         f.write(config_content)
-    logging.info("Updated tailwind.config.js with selected theme and mode.")
+    logging.info("Updated tailwind.config.js with selected theme.")
 
     # Update page.tsx
     with open(page_file, 'r') as f:
