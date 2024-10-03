@@ -3,7 +3,7 @@
 import os
 import subprocess
 import logging
-import shutil
+from customize_site import customize_site  # Import the new module
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -58,12 +58,16 @@ module.exports = nextConfig
 export default function Home() {{
   return (
     <main>
-      <h1>Welcome to {domain_name}</h1>
+      <h1 className="font-bold text-4xl text-gray-900">Welcome to {domain_name}</h1>
     </main>
   )
 }}
 """)
     logging.info("Customized Next.js app.")
+
+    # Call customize_site.py to further customize the app
+    logging.info("Starting site customization...")
+    customize_site(domain_name)
 
 def build_nextjs_app():
     """Build the Next.js app."""
