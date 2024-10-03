@@ -62,8 +62,10 @@ def setup_local_repo(repo_name, template_repo_url):
     if os.path.exists(repo_path):
         logging.info(f"Repository already exists at '{repo_path}'. Updating...")
         os.chdir(repo_path)
-        subprocess.run(['git', 'fetch', 'origin'], check=True)
-        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
+        try:
+            subprocess.run(['git', 'fetch', 'origin'], check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logging.warning(f"Failed to fetch from origin: {e.stderr}")
     else:
         # Clone the template repo
         logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
@@ -85,9 +87,19 @@ def setup_local_repo(repo_name, template_repo_url):
     subprocess.run(['git', 'remote', 'remove', 'origin'], check=False)
     subprocess.run(['git', 'remote', 'add', 'origin', origin_url], check=True)
     
+    # Verify remotes
+    remotes = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True).stdout
+    logging.info(f"Current remotes:\n{remotes}")
+    
     # Push to the new origin
-    subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
-    logging.info(f"Set up local repository and pushed to GitHub repository '{repo_name}'.")
+    try:
+        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True, capture_output=True, text=True)
+        logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to push to origin: {e.stderr}")
+        logging.info("Please ensure you have the correct access rights and the repository exists.")
+    
+    logging.info(f"Set up local repository for '{repo_name}'.")
 
 def create_env_file():
     """Create an .env file with necessary environment variables."""
@@ -140,6 +152,6 @@ def main():
     # Run main script
     from scripts.main import main as setup_main
     setup_main()
-    
+
 if __name__ == '__main__':
     main()
