@@ -60,14 +60,15 @@ def setup_local_repo(repo_name, template_repo_url):
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     repo_path = os.path.join(os.getcwd(), repo_name)
     if os.path.exists(repo_path):
-        logging.info(f"Repository already exists at '{repo_path}'.")
+        logging.info(f"Repository already exists at '{repo_path}'. Updating...")
+        os.chdir(repo_path)
+        subprocess.run(['git', 'fetch', 'origin'], check=True)
+        subprocess.run(['git', 'reset', '--hard', 'origin/main'], check=True)
     else:
         # Clone the template repo
         logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
         subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
-    
-    # Change directory to the repo
-    os.chdir(repo_path)
+        os.chdir(repo_path)
     
     # Create .env file with necessary variables
     create_env_file()
@@ -76,9 +77,12 @@ def setup_local_repo(repo_name, template_repo_url):
     subprocess.run(['git', 'checkout', '-B', 'main'], check=True)
     
     # Set 'upstream-template' remote
-    subprocess.run(['git', 'remote', 'rename', 'origin', 'upstream-template'], check=True)
+    subprocess.run(['git', 'remote', 'remove', 'upstream-template'], check=False)
+    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], check=True)
+    
     # Set 'origin' to the new GitHub repo using SSH URL
     origin_url = f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git'
+    subprocess.run(['git', 'remote', 'remove', 'origin'], check=False)
     subprocess.run(['git', 'remote', 'add', 'origin', origin_url], check=True)
     
     # Push to the new origin
@@ -123,6 +127,8 @@ def main():
     if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
         logging.error("GitHub username and access token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_ACCESS_TOKEN'.")
         sys.exit(1)
+    
+    logging.info(f"Creating/updating repository: {repo_name}")
     
     # Create GitHub repository
     create_github_repo(repo_name)
