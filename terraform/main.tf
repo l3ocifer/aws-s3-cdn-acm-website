@@ -4,18 +4,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-variable "domain_name" {
-  type = string
-}
-
-variable "repo_name" {
-  type = string
-}
-
-variable "hosted_zone_id" {
-  type = string
-}
-
 # Get the existing hosted zone
 data "aws_route53_zone" "main" {
   zone_id = var.hosted_zone_id
