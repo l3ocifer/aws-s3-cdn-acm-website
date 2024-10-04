@@ -42,11 +42,10 @@ def get_terraform_outputs():
     outputs = json.loads(output)
     return outputs['s3_bucket_name']['value'], outputs['cloudfront_distribution_id']['value']
 
-def build_and_export(app_dir):
-    """Build and export the Next.js app."""
-    logging.info("Building and exporting Next.js app...")
+def build_next_app(app_dir):
+    """Build the Next.js app."""
+    logging.info("Building Next.js app...")
     subprocess.run(['npm', 'run', 'build'], cwd=app_dir, check=True)
-    subprocess.run(['npx', 'next', 'export'], cwd=app_dir, check=True)
 
 def deploy_website():
     """Deploy the website to AWS."""
@@ -54,7 +53,7 @@ def deploy_website():
     source_dir = os.path.join(app_dir, 'out')
     s3_bucket_name, distribution_id = get_terraform_outputs()
     
-    build_and_export(app_dir)
+    build_next_app(app_dir)
     sync_s3_bucket(s3_bucket_name, source_dir)
     invalidate_cloudfront(distribution_id)
     logging.info("Website deployed successfully.")
