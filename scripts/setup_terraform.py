@@ -18,12 +18,17 @@ def create_backend_bucket(bucket_name):
     s3 = boto3.client('s3')
     region = boto3.session.Session().region_name
     
+    # Ensure bucket name is valid
+    bucket_name = bucket_name.lower().replace('_', '-')
+    if len(bucket_name) > 63:
+        bucket_name = bucket_name[:63]
+    
     try:
         s3.head_bucket(Bucket=bucket_name)
         logging.info(f"S3 bucket '{bucket_name}' already exists.")
     except botocore.exceptions.ClientError as e:
-        error_code = e.response['Error']['Code']
-        if error_code == '404':
+        error_code = int(e.response['Error']['Code'])
+        if error_code == 404:
             try:
                 if region == 'us-east-1':
                     s3.create_bucket(Bucket=bucket_name)
