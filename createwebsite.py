@@ -233,8 +233,9 @@ def main():
     os.chdir(repo_path)
     
     logging.info("Starting main setup process...")
-    # Run main script
-    subprocess.run(['python3', 'scripts/main.py'], check=True)
+    # Run main script using the virtual environment's Python executable
+    venv_python = sys.executable
+    subprocess.run([venv_python, 'scripts/main.py'], check=True)
     
     logging.info(f"Website setup complete for {domain_name}")
 
