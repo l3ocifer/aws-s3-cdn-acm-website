@@ -5,9 +5,9 @@ import os
 import logging
 import sys
 from botocore.exceptions import ProfileNotFound, NoCredentialsError, ClientError
-from .setup_aws import setup_aws
-from .setup_site import setup_site
-from .utils import get_domain_name
+from scripts.setup_aws import setup_aws
+from scripts.setup_site import setup_site
+from scripts.utils import get_domain_name
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

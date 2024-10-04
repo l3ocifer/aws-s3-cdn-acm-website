@@ -240,7 +240,7 @@ def main():
     sys.path.append(os.getcwd())
     # Run main script using the virtual environment's Python executable
     venv_python = sys.executable
-    subprocess.run([venv_python, 'scripts/main.py'], check=True)
+    subprocess.run([venv_python, '-m', 'scripts.main'], check=True)
     
     logging.info(f"Website setup complete for {domain_name}")
 
