@@ -11,17 +11,13 @@ load_dotenv()
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-def sanitize_bucket_name(bucket_name):
-    """Sanitize the bucket name to ensure it's valid."""
-    return bucket_name.lower().replace('_', '-')
-
 def update_backend_tf(bucket_name):
     """Update the backend.tf file with the correct bucket name."""
     backend_tf_path = 'terraform/backend.tf'
     with open(backend_tf_path, 'r') as f:
         content = f.read()
     
-    updated_content = content.replace('YOUR_BUCKET_NAME', sanitize_bucket_name(bucket_name))
+    updated_content = content.replace('YOUR_BUCKET_NAME', bucket_name)
     
     with open(backend_tf_path, 'w') as f:
         f.write(updated_content)
@@ -50,8 +46,6 @@ def apply_terraform():
 
 def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
-    bucket_name = sanitize_bucket_name(bucket_name)
-    
     update_backend_tf(bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id)
     init_terraform()

@@ -3,7 +3,7 @@
 import os
 import subprocess
 import logging
-from scripts.customize_site import customize_site  # Corrected the import
+from scripts.customize_site import customize_site
 from dotenv import load_dotenv
 import json
 
@@ -70,10 +70,6 @@ export default function Home() {{
 """)
     logging.info("Customized Next.js app.")
 
-    # Call customize_site.py to further customize the app
-    logging.info("Starting site customization...")
-    customize_site(domain_name)
-
 def build_nextjs_app():
     """Build the Next.js app."""
     logging.info("Building Next.js app...")
@@ -83,6 +79,7 @@ def build_nextjs_app():
 def setup_site(domain_name):
     """Set up the website."""
     setup_nextjs_app(domain_name)
+    customize_site(domain_name)
     build_nextjs_app()
 
 if __name__ == '__main__':

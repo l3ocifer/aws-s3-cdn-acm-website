@@ -7,19 +7,27 @@ import sys
 from botocore.exceptions import ProfileNotFound, NoCredentialsError, ClientError
 from scripts.setup_aws import setup_aws
 from scripts.setup_site import setup_site
+from scripts.setup_terraform import setup_terraform
+from scripts.deploy_website import deploy_website
+from scripts.install_requirements import install_requirements
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
 def main():
     try:
+        # Install required dependencies
+        install_requirements()
+
         domain_name = os.getenv('DOMAIN_NAME')
-        if not domain_name:
-            raise ValueError("DOMAIN_NAME environment variable is not set.")
+        repo_name = os.getenv('REPO_NAME')
+        if not domain_name or not repo_name:
+            raise ValueError("DOMAIN_NAME and REPO_NAME environment variables must be set.")
         logging.info(f"Using domain name: {domain_name}")
+        logging.info(f"Using repository name: {repo_name}")
 
         try:
-            setup_aws(domain_name)
+            hosted_zone_id = setup_aws(domain_name)
         except Exception as e:
             logging.error(f"AWS setup failed: {str(e)}")
             logging.error("Please ensure your AWS credentials are correctly configured.")
@@ -27,8 +35,17 @@ def main():
             logging.error("or by running 'aws configure' to set up your AWS CLI profile.")
             return
 
+        # Set up Terraform and provision AWS infrastructure
+        bucket_name = f"{repo_name}-tf-state"
+        setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id)
+
+        # Set up and customize the Next.js site
         setup_site(domain_name)
-        logging.info("Website setup completed successfully!")
+
+        # Deploy the website
+        deploy_website()
+
+        logging.info("Website setup and deployment completed successfully!")
     except Exception as e:
         logging.error(f"An error occurred during setup: {str(e)}")
 
