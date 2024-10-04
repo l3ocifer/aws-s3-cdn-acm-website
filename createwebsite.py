@@ -123,11 +123,14 @@ def setup_local_repo(repo_name, template_repo_url):
     # Fetch template content
     subprocess.run(['git', 'fetch', 'upstream-template'], check=True)
 
-    # Merge template content into the master branch
-    subprocess.run(['git', 'merge', 'upstream-template/main', '--allow-unrelated-histories', '-m', "Merge template into master"], check=True)
+    # Check if the local repository is empty
+    result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True)
+    if result.returncode != 0:
+        # If the repository is empty, create an initial commit
+        subprocess.run(['git', 'commit', '--allow-empty', '-m', "Initial commit"], check=True)
 
-    # Reset to the current HEAD
-    subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True)
+    # Merge template content into the master branch
+    subprocess.run(['git', 'merge', 'upstream-template/master', '--allow-unrelated-histories', '-m', "Merge template into master"], check=True)
 
     # Push changes to the repository
     subprocess.run(['git', 'push', '-u', 'origin', 'master'], check=True)
