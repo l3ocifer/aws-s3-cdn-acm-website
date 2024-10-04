@@ -6,7 +6,7 @@ variable "domain_name" {
 }
 
 variable "repo_name" {
-  description = "The repository name, used for S3 bucket name"
+  description = "The name of the GitHub repository"
   type        = string
 }
 

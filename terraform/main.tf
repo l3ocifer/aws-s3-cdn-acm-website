@@ -4,6 +4,11 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Get the existing hosted zone
+data "aws_route53_zone" "main" {
+  zone_id = var.hosted_zone_id
+}
+
 # S3 bucket for the website
 resource "aws_s3_bucket" "website_bucket" {
   bucket = var.website_bucket_name
