@@ -6,6 +6,7 @@ import logging
 from dotenv import load_dotenv
 import boto3
 import time
+import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,7 +52,7 @@ def create_s3_bucket(bucket_name):
     
     # Ensure bucket name is valid
     bucket_name = bucket_name.lower()
-    bucket_name = ''.join(c for c in bucket_name if c.isalnum() or c in ['-'])
+    bucket_name = re.sub(r'[^a-z0-9-]', '-', bucket_name)  # Replace invalid characters with hyphens
     bucket_name = bucket_name[:63]  # Truncate to 63 characters if longer
     
     try:
@@ -79,7 +80,7 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     # Create bucket names
     tf_state_bucket_name = f"tf-state-{repo_name}-{account_id}"
     tf_state_bucket_name = create_s3_bucket(tf_state_bucket_name)
-    website_bucket_name = f"website-{repo_name}-{account_id}"
+    website_bucket_name = f"website-{re.sub(r'[^a-z0-9-]', '-', repo_name.lower())}-{account_id}"
     
     update_backend_tf(tf_state_bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
