@@ -37,7 +37,11 @@ def main():
 
         # Set up Terraform and provision AWS infrastructure
         bucket_name = f"{repo_name}-tf-state"
-        setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id)
+        try:
+            setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id)
+        except Exception as e:
+            logging.error(f"Failed to set up Terraform: {str(e)}")
+            return
 
         # Set up and customize the Next.js site
         setup_site(domain_name)

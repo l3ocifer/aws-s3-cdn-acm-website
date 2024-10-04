@@ -4,6 +4,22 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# S3 bucket for Terraform state
+resource "aws_s3_bucket" "terraform_backend_s3_bucket" {
+  bucket = "${var.repo_name}-tf-state"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "terraform_backend_bucket_versioning" {
+  bucket = aws_s3_bucket.terraform_backend_s3_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 # Get the existing hosted zone
 data "aws_route53_zone" "main" {
   zone_id = var.hosted_zone_id

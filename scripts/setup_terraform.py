@@ -4,6 +4,7 @@ import subprocess
 import os
 import logging
 from dotenv import load_dotenv
+import boto3
 
 # Load environment variables from .env file
 load_dotenv()
@@ -50,8 +51,23 @@ def apply_main_config():
     subprocess.run(['terraform', 'apply', '-auto-approve'], cwd='terraform', check=True)
     logging.info("Applied main Terraform configuration.")
 
+def create_s3_bucket(bucket_name):
+    """Create an S3 bucket for Terraform state if it doesn't exist."""
+    s3 = boto3.client('s3')
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+        logging.info(f"S3 bucket '{bucket_name}' already exists.")
+    except:
+        try:
+            s3.create_bucket(Bucket=bucket_name)
+            logging.info(f"Created S3 bucket '{bucket_name}' for Terraform state.")
+        except Exception as e:
+            logging.error(f"Failed to create S3 bucket: {str(e)}")
+            raise
+
 def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
+    create_s3_bucket(bucket_name)
     update_backend_tf(bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id)
     init_backend()
