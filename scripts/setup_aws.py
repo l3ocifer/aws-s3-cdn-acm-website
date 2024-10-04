@@ -15,17 +15,20 @@ logging.basicConfig(level=logging.INFO)
 def setup_aws_credentials():
     """Set up AWS credentials using the specified profile."""
     # Get the AWS profile from environment variable, fallback to 'default' if not set
-    aws_profile = os.environ.get('AWS_PROFILE') or os.environ.get('AWS_DEFAULT_PROFILE', 'default')
+    aws_profile = os.environ.get('AWS_PROFILE') or os.environ.get('AWS_DEFAULT_PROFILE')
     
     try:
-        session = boto3.Session(profile_name=aws_profile)
+        if aws_profile:
+            session = boto3.Session(profile_name=aws_profile)
+        else:
+            session = boto3.Session()
         # Test the credentials by making a simple API call
         sts = session.client('sts')
         sts.get_caller_identity()
-        logging.info(f"Successfully authenticated using AWS profile: {aws_profile}")
+        logging.info(f"Successfully authenticated using AWS profile: {aws_profile or 'default'}")
         return session
     except Exception as e:
-        logging.error(f"Failed to authenticate with AWS using profile {aws_profile}. Error: {str(e)}")
+        logging.error(f"Failed to authenticate with AWS using profile {aws_profile or 'default'}. Error: {str(e)}")
         raise
 
 def create_or_get_hosted_zone(session, domain_name):

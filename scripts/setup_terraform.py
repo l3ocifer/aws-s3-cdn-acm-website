@@ -13,31 +13,32 @@ load_dotenv()
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-def create_backend_bucket(bucket_name, region='us-east-1'):
-    """Create the S3 bucket for Terraform backend if it doesn't exist."""
-    s3 = boto3.client('s3', region_name=region)
+def create_backend_bucket(bucket_name):
+    """Create an S3 bucket for Terraform backend if it doesn't exist."""
+    s3 = boto3.client('s3')
+    region = boto3.session.Session().region_name
+    
     try:
         s3.head_bucket(Bucket=bucket_name)
         logging.info(f"S3 bucket '{bucket_name}' already exists.")
-    except ClientError:
-        logging.info(f"Creating S3 bucket '{bucket_name}' for Terraform backend.")
-        s3.create_bucket(Bucket=bucket_name)
-        # Enable versioning
-        s3.put_bucket_versioning(
-            Bucket=bucket_name,
-            VersioningConfiguration={'Status': 'Enabled'}
-        )
-        # Enable encryption
-        s3.put_bucket_encryption(
-            Bucket=bucket_name,
-            ServerSideEncryptionConfiguration={
-                'Rules': [{
-                    'ApplyServerSideEncryptionByDefault': {
-                        'SSEAlgorithm': 'AES256'
-                    }
-                }]
-            }
-        )
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == '404':
+            try:
+                if region == 'us-east-1':
+                    s3.create_bucket(Bucket=bucket_name)
+                else:
+                    s3.create_bucket(
+                        Bucket=bucket_name,
+                        CreateBucketConfiguration={'LocationConstraint': region}
+                    )
+                logging.info(f"Created S3 bucket '{bucket_name}' for Terraform backend.")
+            except botocore.exceptions.ClientError as create_error:
+                logging.error(f"Failed to create S3 bucket: {str(create_error)}")
+                raise
+        else:
+            logging.error(f"Error checking S3 bucket: {str(e)}")
+            raise
 
 def generate_backend_tf(bucket_name):
     """Generate the backend.tf file with the correct bucket name."""
@@ -76,7 +77,10 @@ def apply_terraform():
     logging.info("Applied Terraform configuration.")
 
 def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
-    """Set up Terraform backend and apply the configuration."""
+    """Set up Terraform configuration."""
+    # Sanitize bucket name
+    bucket_name = bucket_name.lower().replace('_', '-')
+    
     create_backend_bucket(bucket_name)
     generate_backend_tf(bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id)
