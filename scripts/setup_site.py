@@ -63,7 +63,7 @@ module.exports = nextConfig
 export default function Home() {{
   return (
     <main>
-      <h1 className="font-bold text-4xl text-gray-900">Welcome to {domain_name}</h1>
+      <h1 className="font-bold text-4xl text-primary">Welcome to {domain_name}</h1>
     </main>
   )
 }}
