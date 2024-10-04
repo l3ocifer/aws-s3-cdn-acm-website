@@ -126,18 +126,12 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     }
 
     viewer_protocol_policy = "redirect-to-https"
+    compress               = true
     min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
+    default_ttl            = 0
+    max_ttl                = 0
   }
 
-  # Add these lines
-  compress               = true
-  default_ttl            = 0
-  min_ttl                = 0
-  max_ttl                = 0
-
-  # Add this block
   custom_error_response {
     error_code         = 403
     response_code      = 200
