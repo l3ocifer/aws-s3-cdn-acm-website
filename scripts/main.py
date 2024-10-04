@@ -7,14 +7,15 @@ import sys
 from botocore.exceptions import ProfileNotFound, NoCredentialsError, ClientError
 from scripts.setup_aws import setup_aws
 from scripts.setup_site import setup_site
-from scripts.utils import get_domain_name
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
 def main():
     try:
-        domain_name = get_domain_name()
+        domain_name = os.getenv('DOMAIN_NAME')
+        if not domain_name:
+            raise ValueError("DOMAIN_NAME environment variable is not set.")
         logging.info(f"Using domain name: {domain_name}")
 
         try:
