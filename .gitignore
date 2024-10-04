@@ -8,9 +8,6 @@ yarn-error.log
 # Next.js
 .next/
 out/
-next-app/.next/
-next-app/out/
-next-app/node_modules/
 
 # Terraform
 .terraform/
@@ -189,3 +186,12 @@ fabric.properties
 
 # Custom
 # Add any project-specific files or directories you want to ignore
+
+# Allow Next.js app files
+!next-app/
+!next-app/src/
+!next-app/public/
+!next-app/package.json
+!next-app/package-lock.json
+!next-app/next.config.js
+!next-app/tsconfig.json

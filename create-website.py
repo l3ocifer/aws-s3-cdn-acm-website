@@ -193,20 +193,9 @@ def main():
     # Sanitize domain name to create repo name
     repo_name = sanitize_domain_name(domain_name)
 
-    # Get color theme
-    colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]
-    print("Choose a primary color theme (ROYGBIV):")
-    for idx, c in enumerate(colors, start=1):
-        print(f"{idx}. {c}")
-    color_choice = int(input("Enter the number of your choice: ")) - 1
-    if color_choice not in range(len(colors)):
-        raise ValueError("Invalid color choice.")
-    color = colors[color_choice]
-
     # Set environment variables for downstream scripts
     os.environ['DOMAIN_NAME'] = domain_name
     os.environ['REPO_NAME'] = repo_name
-    os.environ['COLOR_THEME'] = color
 
     # Create GitHub repository
     create_github_repo(repo_name)
