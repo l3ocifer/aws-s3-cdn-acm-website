@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 def sync_s3_bucket(bucket_name, source_dir):
     """Sync the built Next.js app to the S3 bucket using AWS CLI."""
     logging.info(f"Syncing files from '{source_dir}' to S3 bucket '{bucket_name}'...")
-    subprocess.run(['aws', 's3', 'sync', source_dir, f's3://{bucket_name}', '--delete'], check=True)
+    subprocess.run(['aws', 's3', 'sync', source_dir, f's3://{bucket_name}', '--delete', '--cache-control', 'no-store,max-age=0'], check=True)
     logging.info(f"Files synced to S3 bucket '{bucket_name}'.")
 
 def invalidate_cloudfront(distribution_id):

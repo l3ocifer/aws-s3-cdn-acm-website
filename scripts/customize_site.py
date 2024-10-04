@@ -324,6 +324,26 @@ export default config;
         f.write(tailwind_config_content)
     logging.info("tailwind.config.ts updated successfully.")
 
+def update_next_config(app_dir):
+    """Update next.config.js with custom configuration."""
+    next_config_path = os.path.join(app_dir, 'next.config.js')
+    logging.info(f"Updating {next_config_path} with custom configuration.")
+
+    next_config_content = """/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
+}
+
+module.exports = nextConfig
+"""
+    with open(next_config_path, 'w') as f:
+        f.write(next_config_content)
+    logging.info("next.config.js updated successfully.")
+
 def customize_site():
     """Main function to customize the Next.js site."""
     app_dir = 'next-app'
@@ -342,6 +362,7 @@ def customize_site():
     create_services_page(app_dir)
     create_contact_page(app_dir, domain_name)
     update_tailwind_config(app_dir)
+    update_next_config(app_dir)  # Add this line
 
     logging.info("Site customization complete!")
 

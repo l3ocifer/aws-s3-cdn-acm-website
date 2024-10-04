@@ -131,6 +131,19 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     max_ttl                = 86400
   }
 
+  # Add these lines
+  compress               = true
+  default_ttl            = 0
+  min_ttl                = 0
+  max_ttl                = 0
+
+  # Add this block
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
   price_class = "PriceClass_100"
 
   restrictions {
