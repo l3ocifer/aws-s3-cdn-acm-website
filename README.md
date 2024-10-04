@@ -62,5 +62,5 @@ If these are not set, the script will prompt you for the necessary information.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the Leo Paska License.
 
