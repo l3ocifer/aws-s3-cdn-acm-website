@@ -28,7 +28,7 @@ def create_venv():
     return venv_path
 
 def install_dependencies(pip_executable):
-    required_packages = ['requests', 'python-dotenv']
+    required_packages = ['requests', 'python-dotenv', 'boto3']
     for package in required_packages:
         subprocess.run([pip_executable, 'install', package], check=True)
 
