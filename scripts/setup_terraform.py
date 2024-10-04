@@ -19,7 +19,7 @@ def update_backend_tf(bucket_name):
     with open(backend_tf_path, 'r') as f:
         content = f.read()
     
-    updated_content = content.replace('YOUR_BUCKET_NAME', bucket_name)
+    updated_content = content.replace('tf-state-placeholder', bucket_name)
     
     with open(backend_tf_path, 'w') as f:
         f.write(updated_content)
@@ -95,7 +95,6 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     update_backend_tf(tf_state_bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
     init_backend()
-    init_and_apply_backend()
     apply_main_config()
 
 if __name__ == '__main__':
