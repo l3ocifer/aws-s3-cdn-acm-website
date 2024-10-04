@@ -27,7 +27,7 @@ website_bucket_name = "{website_bucket_name}"
         f.write(tfvars_content)
     logging.info("Generated terraform/terraform.tfvars")
 
-def init_and_apply():
+def init_and_apply(tf_state_bucket_name):
     """Initialize and apply Terraform configuration."""
     backend_config = f"-backend-config=bucket={tf_state_bucket_name} -backend-config=key=terraform.tfstate -backend-config=region=us-east-1"
     subprocess.run(['terraform', 'init', backend_config], cwd='terraform', check=True)
@@ -70,8 +70,8 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     tf_state_bucket_name = create_s3_bucket(tf_state_bucket_name)
     website_bucket_name = f"website-{re.sub(r'[^a-z0-9-]', '-', repo_name.lower())}-{account_id}"
     
-    generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
-    init_and_apply()
+    generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, website_bucket_name)
+    init_and_apply(tf_state_bucket_name)
 
 if __name__ == '__main__':
     domain_name = os.getenv('DOMAIN_NAME')
