@@ -57,9 +57,6 @@ def setup_aws(domain_name):
     """Set up AWS configuration and hosted zone."""
     session = setup_aws_credentials()
     hosted_zone_id = create_or_get_hosted_zone(session, domain_name)
-    # Save hosted zone ID to file
-    with open('.hosted_zone_id', 'w') as f:
-        f.write(hosted_zone_id)
     return hosted_zone_id
 
 if __name__ == '__main__':
