@@ -31,54 +31,81 @@ data "aws_caller_identity" "current" {}
 # S3 bucket for the website
 resource "aws_s3_bucket" "website_bucket" {
   bucket = var.website_bucket_name
-  acl    = "private"
 
   tags = {
     Name = var.repo_name
   }
 }
 
-# CloudFront Origin Access Control (OAC)
-resource "aws_cloudfront_origin_access_control" "oac" {
-  name                                = "${var.repo_name}-oac"
-  description                         = "OAC for ${var.repo_name}"
-  origin_access_control_origin_type   = "s3"
-  signing_behavior                    = "always"
-  signing_protocol                    = "sigv4"
+# S3 bucket ACL
+resource "aws_s3_bucket_ownership_controls" "website_bucket_ownership" {
+  bucket = aws_s3_bucket.website_bucket.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "website_bucket_public_access" {
+  bucket = aws_s3_bucket.website_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_acl" "website_bucket_acl" {
+  depends_on = [
+    aws_s3_bucket_ownership_controls.website_bucket_ownership,
+    aws_s3_bucket_public_access_block.website_bucket_public_access,
+  ]
+
+  bucket = aws_s3_bucket.website_bucket.id
+  acl    = "private"
 }
 
 # ACM Certificate
 resource "aws_acm_certificate" "cert" {
-  domain_name               = var.domain_name
-  validation_method         = "DNS"
-  subject_alternative_names = ["*.${var.domain_name}"]
+  domain_name       = var.domain_name
+  validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
-# Route53 DNS Validation Records
+# Route53 record for ACM validation
 resource "aws_route53_record" "cert_validation" {
   for_each = {
     for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
-      type   = dvo.resource_record_type
       record = dvo.resource_record_value
+      type   = dvo.resource_record_type
     }
   }
 
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = each.value.name
-  type    = each.value.type
-  records = [each.value.record]
-  ttl     = 60
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.main.zone_id
 }
 
 # ACM Certificate Validation
 resource "aws_acm_certificate_validation" "cert_validation" {
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# CloudFront Origin Access Control
+resource "aws_cloudfront_origin_access_control" "oac" {
+  name                              = "OAC ${var.domain_name}"
+  description                       = "Origin Access Control for ${var.domain_name}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
 # CloudFront Distribution
@@ -90,10 +117,9 @@ resource "aws_cloudfront_distribution" "website_distribution" {
   comment             = "Distribution for ${var.domain_name}"
   default_root_object = "index.html"
 
-  origins {
-    domain_name = aws_s3_bucket.website_bucket.bucket_regional_domain_name
-    origin_id   = "S3-${aws_s3_bucket.website_bucket.id}"
-
+  origin {
+    domain_name              = aws_s3_bucket.website_bucket.bucket_regional_domain_name
+    origin_id                = "S3-${aws_s3_bucket.website_bucket.id}"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
 
@@ -114,6 +140,8 @@ resource "aws_cloudfront_distribution" "website_distribution" {
     default_ttl            = 3600
     max_ttl                = 86400
   }
+
+  price_class = "PriceClass_100"
 
   restrictions {
     geo_restriction {
