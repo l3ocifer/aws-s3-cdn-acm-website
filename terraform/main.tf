@@ -6,7 +6,7 @@ provider "aws" {
 
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "terraform_backend_s3_bucket" {
-  bucket = "${var.repo_name}-tf-state"
+  bucket = "tf-state-${var.repo_name}-${var.account_id}"
 
   lifecycle {
     prevent_destroy = true
@@ -30,7 +30,7 @@ data "aws_caller_identity" "current" {}
 
 # S3 bucket for the website
 resource "aws_s3_bucket" "website_bucket" {
-  bucket = "${var.repo_name}-${data.aws_caller_identity.current.account_id}"
+  bucket = "website-${var.repo_name}-${var.account_id}"
   acl    = "private"
 
   tags = {

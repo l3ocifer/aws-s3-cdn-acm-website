@@ -14,3 +14,8 @@ variable "hosted_zone_id" {
   description = "The ID of the Route53 hosted zone"
   type        = string
 }
+
+variable "account_id" {
+  description = "The AWS account ID"
+  type        = string
+}

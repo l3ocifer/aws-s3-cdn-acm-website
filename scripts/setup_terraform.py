@@ -24,12 +24,13 @@ def update_backend_tf(bucket_name):
         f.write(updated_content)
     logging.info("Updated terraform/backend.tf with the correct bucket name.")
 
-def generate_tfvars(domain_name, repo_name, hosted_zone_id):
+def generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id):
     """Generate terraform.tfvars file with the necessary variables."""
     tfvars_content = f"""
 domain_name   = "{domain_name}"
 repo_name     = "{repo_name}"
 hosted_zone_id = "{hosted_zone_id}"
+account_id    = "{account_id}"
 """
     with open('terraform/terraform.tfvars', 'w') as f:
         f.write(tfvars_content)
@@ -65,11 +66,19 @@ def create_s3_bucket(bucket_name):
             logging.error(f"Failed to create S3 bucket: {str(e)}")
             raise
 
-def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
+def setup_terraform(domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
-    create_s3_bucket(bucket_name)
-    update_backend_tf(bucket_name)
-    generate_tfvars(domain_name, repo_name, hosted_zone_id)
+    # Get AWS account ID
+    sts = boto3.client('sts')
+    account_id = sts.get_caller_identity()["Account"]
+    
+    # Create bucket names
+    tf_state_bucket_name = f"tf-state-{repo_name}-{account_id}"
+    website_bucket_name = f"website-{repo_name}-{account_id}"
+    
+    create_s3_bucket(tf_state_bucket_name)
+    update_backend_tf(tf_state_bucket_name)
+    generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id)
     init_backend()
     init_and_apply_backend()
     apply_main_config()
@@ -80,5 +89,4 @@ if __name__ == '__main__':
     hosted_zone_id = os.getenv('HOSTED_ZONE_ID')
     if not domain_name or not repo_name or not hosted_zone_id:
         raise ValueError("DOMAIN_NAME, REPO_NAME, and HOSTED_ZONE_ID environment variables must be set.")
-    bucket_name = f"{repo_name}-tf-state"
-    setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id)
+    setup_terraform(domain_name, repo_name, hosted_zone_id)
