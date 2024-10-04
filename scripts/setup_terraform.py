@@ -25,13 +25,15 @@ def update_backend_tf(bucket_name):
         f.write(updated_content)
     logging.info("Updated terraform/backend.tf with the correct bucket name.")
 
-def generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id):
+def generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name):
     """Generate terraform.tfvars file with the necessary variables."""
     tfvars_content = f"""
 domain_name   = "{domain_name}"
 repo_name     = "{repo_name}"
 hosted_zone_id = "{hosted_zone_id}"
 account_id    = "{account_id}"
+tf_state_bucket_name = "{tf_state_bucket_name}"
+website_bucket_name = "{website_bucket_name}"
 """
     with open('terraform/terraform.tfvars', 'w') as f:
         f.write(tfvars_content)
@@ -59,7 +61,7 @@ def create_s3_bucket(bucket_name):
     
     # Ensure bucket name is valid
     bucket_name = bucket_name.lower()
-    bucket_name = ''.join(c for c in bucket_name if c.isalnum() or c in ['-', '.'])
+    bucket_name = ''.join(c for c in bucket_name if c.isalnum() or c in ['-'])
     bucket_name = bucket_name[:63]  # Truncate to 63 characters if longer
     
     try:
@@ -76,6 +78,7 @@ def create_s3_bucket(bucket_name):
         except Exception as e:
             logging.error(f"Failed to create S3 bucket: {str(e)}")
             raise
+    return bucket_name
 
 def setup_terraform(domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
@@ -85,11 +88,12 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     
     # Create bucket names
     tf_state_bucket_name = f"tf-state-{repo_name}-{account_id}"
+    tf_state_bucket_name = create_s3_bucket(tf_state_bucket_name)
     website_bucket_name = f"website-{repo_name}-{account_id}"
+    website_bucket_name = create_s3_bucket(website_bucket_name)
     
-    create_s3_bucket(tf_state_bucket_name)
     update_backend_tf(tf_state_bucket_name)
-    generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id)
+    generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
     init_backend()
     init_and_apply_backend()
     apply_main_config()
