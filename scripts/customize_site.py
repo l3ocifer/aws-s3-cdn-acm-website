@@ -7,14 +7,6 @@ import hashlib
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-def get_environment_variables():
-    """Retrieve DOMAIN_NAME from environment variables."""
-    domain_name = os.getenv('DOMAIN_NAME')
-    if not domain_name:
-        logging.error("DOMAIN_NAME environment variable is not set.")
-        raise ValueError("DOMAIN_NAME environment variable is not set.")
-    return domain_name
-
 def generate_color_palette(domain_name):
     """Generate a color palette based on the domain name."""
     hash_object = hashlib.md5(domain_name.encode())
@@ -347,7 +339,7 @@ module.exports = nextConfig
         f.write(next_config_content)
     logging.info("next.config.js updated successfully.")
 
-def customize_site():
+def customize_site(domain_name):
     """Main function to customize the Next.js site."""
     app_dir = 'next-app'
 
@@ -355,7 +347,6 @@ def customize_site():
         logging.error(f"Directory '{app_dir}' does not exist. Ensure that the Next.js app is initialized.")
         return
 
-    domain_name = get_environment_variables()
     primary, secondary, accent = generate_color_palette(domain_name)
 
     update_globals_css(app_dir, primary, secondary, accent)
@@ -365,13 +356,17 @@ def customize_site():
     create_services_page(app_dir)
     create_contact_page(app_dir, domain_name)
     update_tailwind_config(app_dir)
-    update_next_config(app_dir)  # Add this line
+    update_next_config(app_dir)
 
     logging.info("Site customization complete!")
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python customize_site.py <domain_name>")
+        sys.exit(1)
     try:
-        customize_site()
+        customize_site(sys.argv[1])
     except Exception as e:
         logging.error(f"An error occurred during site customization: {str(e)}")
         raise

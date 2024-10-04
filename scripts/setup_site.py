@@ -4,11 +4,6 @@ import os
 import subprocess
 import logging
 from scripts.customize_site import customize_site
-from dotenv import load_dotenv
-import json
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -39,11 +34,12 @@ def build_nextjs_app():
 def setup_site(domain_name):
     """Set up the website."""
     setup_nextjs_app(domain_name)
-    customize_site()
+    customize_site(domain_name)
     build_nextjs_app()
 
 if __name__ == '__main__':
-    domain_name = os.getenv('DOMAIN_NAME')
-    if not domain_name:
-        raise ValueError("DOMAIN_NAME environment variable is not set.")
-    setup_site(domain_name)
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python setup_site.py <domain_name>")
+        sys.exit(1)
+    setup_site(sys.argv[1])
