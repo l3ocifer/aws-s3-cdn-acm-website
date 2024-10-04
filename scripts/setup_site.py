@@ -5,6 +5,7 @@ import subprocess
 import logging
 from scripts.customize_site import customize_site  # Corrected the import
 from dotenv import load_dotenv
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,7 +21,7 @@ def setup_nextjs_app(domain_name):
     else:
         logging.info("Creating Next.js app...")
         subprocess.run([
-            'npx', 'create-next-app@latest', app_dir,
+            'npx', '--yes', 'create-next-app@latest', app_dir,
             '--typescript', '--tailwind', '--eslint',
             '--app', '--src-dir', '--import-alias', '@/*',
             '--use-npm', '--yes'
@@ -50,10 +51,10 @@ module.exports = nextConfig
     # Update package.json scripts
     package_json_path = os.path.join(app_dir, 'package.json')
     with open(package_json_path, 'r') as f:
-        package_json = f.read()
-    package_json = package_json.replace('"build": "next build"', '"build": "next build && next export"')
+        package_json = json.load(f)
+    package_json['scripts']['build'] = 'next build'
     with open(package_json_path, 'w') as f:
-        f.write(package_json)
+        json.dump(package_json, f, indent=2)
     # Update index page
     index_page_path = os.path.join(app_dir, 'src', 'app', 'page.tsx')
     os.makedirs(os.path.dirname(index_page_path), exist_ok=True)
