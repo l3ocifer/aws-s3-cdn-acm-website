@@ -190,6 +190,9 @@ def main():
         raise ValueError("Domain name must be provided.")
     save_last_domain(domain_name)
 
+    # Sanitize domain name to create repo name
+    repo_name = sanitize_domain_name(domain_name)
+
     # Get color theme
     colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]
     print("Choose a primary color theme (ROYGBIV):")
