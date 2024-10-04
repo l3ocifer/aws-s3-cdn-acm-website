@@ -8,8 +8,7 @@ import subprocess
 import shutil
 import atexit
 import venv
-import urllib.request
-import json
+import argparse
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -28,18 +27,10 @@ def create_venv():
             raise
     return venv_path
 
-def activate_venv(venv_path):
-    python_executable = os.path.join(venv_path, 'bin', 'python') if sys.platform != 'win32' else os.path.join(venv_path, 'Scripts', 'python.exe')
-    # Update PATH and other environment variables
-    os.environ['VIRTUAL_ENV'] = venv_path
-    os.environ['PATH'] = os.pathsep.join([os.path.dirname(python_executable), os.environ.get('PATH', '')])
-    os.environ.pop('PYTHONHOME', None)
-    return python_executable
-
-def install_dependencies(pip_path):
+def install_dependencies(pip_executable):
     required_packages = ['requests', 'python-dotenv']
     for package in required_packages:
-        subprocess.run([pip_path, 'install', package], check=True)
+        subprocess.run([pip_executable, 'install', package], check=True)
 
 def cleanup_venv(venv_path):
     if os.path.exists(venv_path):
@@ -62,6 +53,9 @@ def sanitize_domain_name(domain_name):
 
 def create_github_repo(repo_name):
     """Create a new private GitHub repository."""
+    import urllib.request
+    import json
+
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
     if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
@@ -170,67 +164,79 @@ AWS_PROFILE=default
 
 def main():
     """Entry point for creating a new website."""
-    # Create and activate virtual environment
-    venv_path = create_venv()
-    atexit.register(cleanup_venv, venv_path)
-    try:
-        # Activate the virtual environment
-        python_executable = activate_venv(venv_path)
-        pip_executable = os.path.join(os.path.dirname(python_executable), 'pip')
-        
-        # Install dependencies in the virtual environment
-        install_dependencies(pip_executable)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--venv-activated', action='store_true', help='Indicates the script is running inside the virtual environment')
+    args = parser.parse_args()
 
-        from dotenv import load_dotenv
+    if not args.venv_activated:
+        # Create and activate virtual environment
+        venv_path = create_venv()
+        atexit.register(cleanup_venv, venv_path)
+        try:
+            # Install dependencies in the virtual environment
+            pip_executable = os.path.join(venv_path, 'bin', 'pip') if sys.platform != 'win32' else os.path.join(venv_path, 'Scripts', 'pip')
+            install_dependencies(pip_executable)
 
-        # Load environment variables from .env if it exists
-        if os.path.exists('.env'):
-            load_dotenv()
+            # Re-invoke the script using the virtual environment's Python executable
+            python_executable = os.path.join(venv_path, 'bin', 'python') if sys.platform != 'win32' else os.path.join(venv_path, 'Scripts', 'python.exe')
+            logging.info("Re-invoking script inside virtual environment...")
+            subprocess.run([python_executable, *sys.argv, '--venv-activated'], check=True)
 
-        # Get domain name
-        domain_name = os.getenv('DOMAIN_NAME')
-        if not domain_name:
-            domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
-        os.environ['DOMAIN_NAME'] = domain_name
-        logging.info(f"Using domain name: {domain_name}")
+        except Exception as e:
+            logging.error(f"An error occurred during setup: {str(e)}")
+            raise
+        finally:
+            cleanup_venv(venv_path)
+        sys.exit(0)
 
-        repo_name = os.getenv('REPO_NAME')
-        if not repo_name:
-            repo_name = sanitize_domain_name(domain_name)
-        os.environ['REPO_NAME'] = repo_name
-        logging.info(f"Using repository name: {repo_name}")
+    # The script is now running inside the virtual environment
+    from dotenv import load_dotenv
+    import urllib.request
+    import json
 
-        GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-        GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
-        if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
-            GITHUB_USERNAME = input("Enter your GitHub username: ").strip()
-            GITHUB_ACCESS_TOKEN = input("Enter your GitHub access token: ").strip()
-            os.environ['GITHUB_USERNAME'] = GITHUB_USERNAME
-            os.environ['GITHUB_ACCESS_TOKEN'] = GITHUB_ACCESS_TOKEN
+    # Load environment variables from .env if it exists
+    if os.path.exists('.env'):
+        load_dotenv()
 
-        logging.info(f"Creating/updating repository: {repo_name}")
-        
-        # Create GitHub repository
-        create_github_repo(repo_name)
-        
-        # Clone the template repository and set up remotes
-        template_repo_url = 'git@github.com:l3ocifer/website.git'  # Template repo SSH URL
-        setup_local_repo(repo_name, template_repo_url)
-        
-        # Change to the newly created repository directory
-        repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
-        os.chdir(repo_path)
-        
-        logging.info("Starting main setup process...")
-        # Run main script using the virtual environment's Python executable
-        subprocess.run([python_executable, 'scripts/main.py'], check=True)
-        
-        logging.info(f"Website setup complete for {domain_name}")
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        raise
-    finally:
-        cleanup_venv(venv_path)
+    # Get domain name
+    domain_name = os.getenv('DOMAIN_NAME')
+    if not domain_name:
+        domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
+    os.environ['DOMAIN_NAME'] = domain_name
+    logging.info(f"Using domain name: {domain_name}")
+
+    repo_name = os.getenv('REPO_NAME')
+    if not repo_name:
+        repo_name = sanitize_domain_name(domain_name)
+    os.environ['REPO_NAME'] = repo_name
+    logging.info(f"Using repository name: {repo_name}")
+
+    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
+    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
+    if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
+        GITHUB_USERNAME = input("Enter your GitHub username: ").strip()
+        GITHUB_ACCESS_TOKEN = input("Enter your GitHub access token: ").strip()
+        os.environ['GITHUB_USERNAME'] = GITHUB_USERNAME
+        os.environ['GITHUB_ACCESS_TOKEN'] = GITHUB_ACCESS_TOKEN
+
+    logging.info(f"Creating/updating repository: {repo_name}")
+    
+    # Create GitHub repository
+    create_github_repo(repo_name)
+    
+    # Clone the template repository and set up remotes
+    template_repo_url = 'git@github.com:l3ocifer/website.git'  # Template repo SSH URL
+    setup_local_repo(repo_name, template_repo_url)
+    
+    # Change to the newly created repository directory
+    repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
+    os.chdir(repo_path)
+    
+    logging.info("Starting main setup process...")
+    # Run main script
+    subprocess.run(['python3', 'scripts/main.py'], check=True)
+    
+    logging.info(f"Website setup complete for {domain_name}")
 
 if __name__ == '__main__':
     main()
