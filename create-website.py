@@ -212,7 +212,7 @@ def main():
     create_github_repo(repo_name)
     
     # Clone the template repository and set up remotes
-    template_repo_url = 'git@github.com:l3ocifer/website.git'  # Template repo SSH URL
+    template_repo_url = 'git@github.com:l3ocifer/aws-s3-cdn-acm-website.git'  # Template repo SSH URL
     setup_local_repo(repo_name, template_repo_url)
     
     # Change to the newly created repository directory

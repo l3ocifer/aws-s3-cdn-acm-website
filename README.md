@@ -65,4 +65,4 @@ This project is licensed under the Leo Paska License.
 
 ## Teardown Process
 
-To completely remove the website and all associated resources, use the `teardown_website.py` script:
+To completely remove the website and all associated resources, use the `teardown_website.py` script - it mostly works...
