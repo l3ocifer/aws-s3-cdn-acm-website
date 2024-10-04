@@ -51,11 +51,9 @@ def get_terraform_outputs():
 
 def deploy_website():
     """Deploy the website to AWS."""
-    s3_bucket_name = os.getenv('REPO_NAME')
     source_dir = 'next-app/out'
+    s3_bucket_name, distribution_id = get_terraform_outputs()
     sync_s3_bucket(s3_bucket_name, source_dir)
-    # Get CloudFront distribution ID
-    _, distribution_id = get_terraform_outputs()
     invalidate_cloudfront(distribution_id)
     logging.info("Website deployed successfully.")
 

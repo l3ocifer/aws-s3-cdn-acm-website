@@ -12,7 +12,5 @@ output "cloudfront_distribution_id" {
 
 output "website_url" {
   value       = "https://${var.domain_name}"
-  description = "The URL of the S3-hosted website."
+  description = "The URL of the website."
 }
-
-
