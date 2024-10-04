@@ -14,26 +14,13 @@ load_dotenv()
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-def update_backend_tf(bucket_name):
-    """Update the backend.tf file with the correct bucket name."""
-    backend_tf_path = 'terraform/backend.tf'
-    with open(backend_tf_path, 'r') as f:
-        content = f.read()
-    
-    updated_content = content.replace('tf-state-placeholder', bucket_name)
-    
-    with open(backend_tf_path, 'w') as f:
-        f.write(updated_content)
-    logging.info("Updated terraform/backend.tf with the correct bucket name.")
-
-def generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name):
+def generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, website_bucket_name):
     """Generate terraform.tfvars file with the necessary variables."""
     tfvars_content = f"""
 domain_name   = "{domain_name}"
 repo_name     = "{repo_name}"
 hosted_zone_id = "{hosted_zone_id}"
 account_id    = "{account_id}"
-tf_state_bucket_name = "{tf_state_bucket_name}"
 website_bucket_name = "{website_bucket_name}"
 """
     with open('terraform/terraform.tfvars', 'w') as f:
@@ -42,7 +29,8 @@ website_bucket_name = "{website_bucket_name}"
 
 def init_and_apply():
     """Initialize and apply Terraform configuration."""
-    subprocess.run(['terraform', 'init'], cwd='terraform', check=True)
+    backend_config = f"-backend-config=bucket={tf_state_bucket_name} -backend-config=key=terraform.tfstate -backend-config=region=us-east-1"
+    subprocess.run(['terraform', 'init', backend_config], cwd='terraform', check=True)
     subprocess.run(['terraform', 'apply', '-auto-approve'], cwd='terraform', check=True)
     logging.info("Applied Terraform configuration.")
 
@@ -82,7 +70,6 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     tf_state_bucket_name = create_s3_bucket(tf_state_bucket_name)
     website_bucket_name = f"website-{re.sub(r'[^a-z0-9-]', '-', repo_name.lower())}-{account_id}"
     
-    update_backend_tf(tf_state_bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
     init_and_apply()
 

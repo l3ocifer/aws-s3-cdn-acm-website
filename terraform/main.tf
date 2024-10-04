@@ -1,5 +1,9 @@
 # File: terraform/main.tf
 
+terraform {
+  backend "s3" {}
+}
+
 provider "aws" {
   region = "us-east-1"
 }
