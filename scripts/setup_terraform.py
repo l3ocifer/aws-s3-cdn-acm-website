@@ -46,20 +46,17 @@ def create_backend_bucket(bucket_name):
             logging.error(f"Error checking S3 bucket: {str(e)}")
             raise
 
-def generate_backend_tf(bucket_name):
-    """Generate the backend.tf file with the correct bucket name."""
-    backend_tf_content = f"""
-terraform {{
-  backend "s3" {{
-    bucket = "{bucket_name}"
-    key    = "terraform.tfstate"
-    region = "us-east-1"
-  }}
-}}
-"""
-    with open('terraform/backend.tf', 'w') as f:
-        f.write(backend_tf_content)
-    logging.info("Generated terraform/backend.tf")
+def update_backend_tf(bucket_name):
+    """Update the backend.tf file with the correct bucket name."""
+    backend_tf_path = 'terraform/backend.tf'
+    with open(backend_tf_path, 'r') as f:
+        content = f.read()
+    
+    updated_content = content.replace('YOUR_BUCKET_NAME', sanitize_bucket_name(bucket_name))
+    
+    with open(backend_tf_path, 'w') as f:
+        f.write(updated_content)
+    logging.info("Updated terraform/backend.tf with the correct bucket name.")
 
 def generate_tfvars(domain_name, repo_name, hosted_zone_id):
     """Generate terraform.tfvars file with the necessary variables."""
@@ -87,7 +84,7 @@ def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
     bucket_name = sanitize_bucket_name(bucket_name)
     
     create_backend_bucket(bucket_name)
-    generate_backend_tf(bucket_name)
+    update_backend_tf(bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id)
     init_terraform()
     apply_terraform()
