@@ -94,56 +94,44 @@ def setup_local_repo(repo_name, template_repo_url):
     """Clone the template repo and set up remotes."""
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     websites_dir = os.path.expanduser('~/git/websites')
-    os.makedirs(websites_dir, exist_ok=True)
     repo_path = os.path.join(websites_dir, repo_name)
-    
+
+    # Remove existing repo directory if it exists
     if os.path.exists(repo_path):
-        logging.info(f"Repository already exists at '{repo_path}'. Updating...")
-        os.chdir(repo_path)
-        try:
-            subprocess.run(['git', 'fetch', 'origin'], check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            logging.warning(f"Failed to fetch from origin: {e.stderr}")
-            logging.info("Attempting to set up the repository from scratch...")
-            os.chdir(websites_dir)
-            shutil.rmtree(repo_path)
-            subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
-            os.chdir(repo_path)
-    else:
-        # Clone the template repo
-        logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
-        os.chdir(websites_dir)
-        subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
-        os.chdir(repo_path)
-    
-    # Create .env file with necessary variables
-    create_env_file()
-    
-    # Check out the main branch
-    subprocess.run(['git', 'checkout', '-B', 'main'], check=True)
-    
-    # Set 'upstream-template' remote
-    subprocess.run(['git', 'remote', 'remove', 'upstream-template'], check=False)
-    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], check=True)
-    
-    # Set 'origin' to the new GitHub repo using SSH URL
-    origin_url = f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git'
-    subprocess.run(['git', 'remote', 'remove', 'origin'], check=False)
-    subprocess.run(['git', 'remote', 'add', 'origin', origin_url], check=True)
-    
-    # Verify remotes
-    remotes = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True).stdout
-    logging.info(f"Current remotes:\n{remotes}")
-    
-    # Push to the new origin
-    try:
-        subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True, capture_output=True, text=True)
-        logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to push to origin: {e.stderr}")
-        logging.info("Please ensure you have the correct access rights and the repository exists.")
-    
+        shutil.rmtree(repo_path)
+
+    # Clone the template repository
+    subprocess.run(['git', 'clone', template_repo_url, repo_path], check=True)
+    os.chdir(repo_path)
+
+    # Set up remotes
+    subprocess.run(['git', 'remote', 'rename', 'origin', 'upstream-template'], check=True)
+    subprocess.run(['git', 'remote', 'add', 'origin', f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git'], check=True)
+
+    # Fetch and checkout main branch
+    subprocess.run(['git', 'fetch', 'origin'], check=True)
+    subprocess.run(['git', 'checkout', '-B', 'main', 'origin/main'], check=True)
+
+    # Log current remotes
+    result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True, check=True)
+    logging.info(f"Current remotes:\n{result.stdout}")
+
+    # Push to GitHub
+    subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
+    logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
+
     logging.info(f"Set up local repository for '{repo_name}' at '{repo_path}'.")
+    
+    # Change to the newly created repository directory
+    repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
+    os.chdir(repo_path)
+    
+    logging.info("Starting main setup process...")
+    # Run main script using the virtual environment's Python executable
+    venv_python = sys.executable
+    subprocess.run([venv_python, 'scripts/main.py'], check=True)
+    
+    logging.info(f"Website setup complete for {domain_name}")
 
 def create_env_file():
     """Create an .env file with necessary environment variables."""

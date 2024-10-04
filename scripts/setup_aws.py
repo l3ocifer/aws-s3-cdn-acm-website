@@ -23,6 +23,7 @@ def setup_aws_credentials():
         sts = session.client('sts')
         sts.get_caller_identity()
         logging.info(f"Successfully authenticated using AWS profile: {aws_profile}")
+        return session
     except Exception as e:
         logging.error(f"Failed to authenticate with AWS using profile {aws_profile}. Error: {str(e)}")
         raise
