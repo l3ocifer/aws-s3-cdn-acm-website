@@ -20,19 +20,18 @@ def create_venv():
 
 def activate_venv(venv_path):
     if sys.platform == 'win32':
-        activate_script = os.path.join(venv_path, 'Scripts', 'activate.bat')
+        activate_script = os.path.join(venv_path, 'Scripts', 'activate_this.py')
     else:
-        activate_script = os.path.join(venv_path, 'bin', 'activate')
+        activate_script = os.path.join(venv_path, 'bin', 'activate_this.py')
     
-    activate_cmd = f'source "{activate_script}"' if sys.platform != 'win32' else f'call "{activate_script}"'
-    os.environ['VIRTUAL_ENV'] = venv_path
-    os.environ['PATH'] = os.path.join(venv_path, 'bin') + os.pathsep + os.environ['PATH']
-    sys.prefix = venv_path
+    with open(activate_script) as f:
+        exec(f.read(), {'__file__': activate_script})
 
 def install_dependencies(venv_path):
     required_packages = ['requests', 'python-dotenv']
+    pip_path = os.path.join(venv_path, 'bin', 'pip') if sys.platform != 'win32' else os.path.join(venv_path, 'Scripts', 'pip')
     for package in required_packages:
-        subprocess.run([os.path.join(venv_path, 'bin', 'pip'), 'install', package], check=True)
+        subprocess.run([pip_path, 'install', package], check=True)
 
 def cleanup_venv(venv_path):
     if os.path.exists(venv_path):
