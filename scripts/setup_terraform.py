@@ -39,21 +39,11 @@ website_bucket_name = "{website_bucket_name}"
         f.write(tfvars_content)
     logging.info("Generated terraform/terraform.tfvars")
 
-def init_backend():
-    """Initialize Terraform backend."""
-    subprocess.run(['terraform', 'init', '-backend=false'], cwd='terraform', check=True)
-    logging.info("Initialized Terraform backend.")
-
-def init_and_apply_backend():
-    """Initialize and apply Terraform backend configuration."""
+def init_and_apply():
+    """Initialize and apply Terraform configuration."""
     subprocess.run(['terraform', 'init'], cwd='terraform', check=True)
-    subprocess.run(['terraform', 'apply', '-target=aws_s3_bucket.terraform_backend_s3_bucket', '-auto-approve'], cwd='terraform', check=True)
-    logging.info("Applied Terraform backend configuration.")
-
-def apply_main_config():
-    """Apply the main Terraform configuration."""
     subprocess.run(['terraform', 'apply', '-auto-approve'], cwd='terraform', check=True)
-    logging.info("Applied main Terraform configuration.")
+    logging.info("Applied Terraform configuration.")
 
 def create_s3_bucket(bucket_name):
     """Create an S3 bucket for Terraform state if it doesn't exist."""
@@ -90,12 +80,10 @@ def setup_terraform(domain_name, repo_name, hosted_zone_id):
     tf_state_bucket_name = f"tf-state-{repo_name}-{account_id}"
     tf_state_bucket_name = create_s3_bucket(tf_state_bucket_name)
     website_bucket_name = f"website-{repo_name}-{account_id}"
-    website_bucket_name = create_s3_bucket(website_bucket_name)
     
     update_backend_tf(tf_state_bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id, account_id, tf_state_bucket_name, website_bucket_name)
-    init_backend()
-    apply_main_config()
+    init_and_apply()
 
 if __name__ == '__main__':
     domain_name = os.getenv('DOMAIN_NAME')
