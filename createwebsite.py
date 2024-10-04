@@ -178,20 +178,27 @@ def main():
 
     # The script is now running inside the virtual environment
     from dotenv import load_dotenv
-    import urllib.request
-    import json
 
     # Load environment variables from .env if it exists
     if os.path.exists('.env'):
         load_dotenv()
 
     # Get domain name
-    domain_name = get_terraform_variable('domain_name')
-    repo_name = get_terraform_variable('repo_name')
-    if not domain_name or not repo_name:
-        raise ValueError("domain_name and repo_name must be set in Terraform variables.")
+    last_domain = get_last_domain()
+    domain_name = os.getenv('DOMAIN_NAME') or input(f"Enter the domain name (last used: {last_domain}): ") or last_domain
+    if not domain_name:
+        raise ValueError("Domain name must be provided.")
+    save_last_domain(domain_name)
+
+    # Generate repo name
+    repo_name = sanitize_domain_name(domain_name)
+
     logging.info(f"Using domain name: {domain_name}")
     logging.info(f"Using repository name: {repo_name}")
+
+    # Set environment variables for downstream scripts
+    os.environ['DOMAIN_NAME'] = domain_name
+    os.environ['REPO_NAME'] = repo_name
 
     # Create GitHub repository
     create_github_repo(repo_name)
