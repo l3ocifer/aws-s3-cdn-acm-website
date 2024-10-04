@@ -67,7 +67,7 @@ try:
     # Install dependencies in the virtual environment
     install_dependencies(venv_path)
 
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv 
 
     # Load environment variables from .env if it exists
     if os.path.exists('.env'):
