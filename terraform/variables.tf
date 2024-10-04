@@ -20,11 +20,6 @@ variable "account_id" {
   type        = string
 }
 
-variable "tf_state_bucket_name" {
-  description = "The name of the S3 bucket for Terraform state"
-  type        = string
-}
-
 variable "website_bucket_name" {
   description = "The name of the S3 bucket for the website"
   type        = string
