@@ -8,6 +8,8 @@ import subprocess
 import shutil
 import atexit
 import venv
+import urllib.request
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -65,7 +67,6 @@ try:
     # Install dependencies in the virtual environment
     install_dependencies(venv_path)
 
-    import requests
     from dotenv import load_dotenv
 
     # Load environment variables from .env if it exists
@@ -101,20 +102,28 @@ try:
             'Authorization': f'token {GITHUB_ACCESS_TOKEN}',
             'Accept': 'application/vnd.github.v3+json'
         }
-        data = {
+        data = json.dumps({
             'name': repo_name,
             'private': True,
             'auto_init': False
-        }
-        response = requests.post(api_url, headers=headers, json=data)
-        if response.status_code == 201:
-            logging.info(f"Successfully created GitHub repository '{repo_name}'.")
-        elif response.status_code == 422 and 'already exists' in response.text:
-            logging.info(f"GitHub repository '{repo_name}' already exists.")
-        else:
-            logging.error(f"Failed to create GitHub repository '{repo_name}'.")
-            logging.error(f"Response: {response.status_code} {response.text}")
-            sys.exit(1)
+        }).encode('utf-8')
+        req = urllib.request.Request(api_url, data=data, headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req) as response:
+                if response.status == 201:
+                    logging.info(f"Successfully created GitHub repository '{repo_name}'.")
+                else:
+                    response_body = response.read().decode('utf-8')
+                    logging.error(f"Failed to create GitHub repository '{repo_name}'.")
+                    logging.error(f"Response: {response.status} {response_body}")
+                    sys.exit(1)
+        except urllib.error.HTTPError as e:
+            if e.code == 422 and 'already exists' in e.read().decode('utf-8'):
+                logging.info(f"GitHub repository '{repo_name}' already exists.")
+            else:
+                logging.error(f"Failed to create GitHub repository '{repo_name}'.")
+                logging.error(f"Response: {e.code} {e.reason}")
+                sys.exit(1)
 
     def setup_local_repo(repo_name, template_repo_url):
         """Clone the template repo and set up remotes."""
