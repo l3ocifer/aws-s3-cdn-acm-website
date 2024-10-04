@@ -1,10 +1,8 @@
 # File: scripts/setup_terraform.py
 
-import boto3
 import subprocess
 import os
 import logging
-from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -16,35 +14,6 @@ logging.basicConfig(level=logging.INFO)
 def sanitize_bucket_name(bucket_name):
     """Sanitize the bucket name to ensure it's valid."""
     return bucket_name.lower().replace('_', '-')
-
-def create_backend_bucket(bucket_name):
-    """Create an S3 bucket for Terraform backend if it doesn't exist."""
-    s3 = boto3.client('s3')
-    region = boto3.session.Session().region_name
-    
-    bucket_name = sanitize_bucket_name(bucket_name)
-    
-    try:
-        s3.head_bucket(Bucket=bucket_name)
-        logging.info(f"S3 bucket '{bucket_name}' already exists.")
-    except ClientError as e:
-        error_code = int(e.response['Error']['Code'])
-        if error_code == 404:
-            try:
-                if region == 'us-east-1':
-                    s3.create_bucket(Bucket=bucket_name)
-                else:
-                    s3.create_bucket(
-                        Bucket=bucket_name,
-                        CreateBucketConfiguration={'LocationConstraint': region}
-                    )
-                logging.info(f"Created S3 bucket '{bucket_name}' for Terraform backend.")
-            except ClientError as create_error:
-                logging.error(f"Failed to create S3 bucket: {str(create_error)}")
-                raise
-        else:
-            logging.error(f"Error checking S3 bucket: {str(e)}")
-            raise
 
 def update_backend_tf(bucket_name):
     """Update the backend.tf file with the correct bucket name."""
@@ -83,7 +52,6 @@ def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
     bucket_name = sanitize_bucket_name(bucket_name)
     
-    create_backend_bucket(bucket_name)
     update_backend_tf(bucket_name)
     generate_tfvars(domain_name, repo_name, hosted_zone_id)
     init_terraform()
