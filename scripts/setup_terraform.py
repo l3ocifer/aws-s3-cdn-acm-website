@@ -13,20 +13,21 @@ load_dotenv()
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
+def sanitize_bucket_name(bucket_name):
+    """Sanitize the bucket name to ensure it's valid."""
+    return bucket_name.lower().replace('_', '-')
+
 def create_backend_bucket(bucket_name):
     """Create an S3 bucket for Terraform backend if it doesn't exist."""
     s3 = boto3.client('s3')
     region = boto3.session.Session().region_name
     
-    # Ensure bucket name is valid
-    bucket_name = bucket_name.lower().replace('_', '-')
-    if len(bucket_name) > 63:
-        bucket_name = bucket_name[:63]
+    bucket_name = sanitize_bucket_name(bucket_name)
     
     try:
         s3.head_bucket(Bucket=bucket_name)
         logging.info(f"S3 bucket '{bucket_name}' already exists.")
-    except botocore.exceptions.ClientError as e:
+    except ClientError as e:
         error_code = int(e.response['Error']['Code'])
         if error_code == 404:
             try:
@@ -38,7 +39,7 @@ def create_backend_bucket(bucket_name):
                         CreateBucketConfiguration={'LocationConstraint': region}
                     )
                 logging.info(f"Created S3 bucket '{bucket_name}' for Terraform backend.")
-            except botocore.exceptions.ClientError as create_error:
+            except ClientError as create_error:
                 logging.error(f"Failed to create S3 bucket: {str(create_error)}")
                 raise
         else:
@@ -83,8 +84,7 @@ def apply_terraform():
 
 def setup_terraform(bucket_name, domain_name, repo_name, hosted_zone_id):
     """Set up Terraform configuration."""
-    # Sanitize bucket name
-    bucket_name = bucket_name.lower().replace('_', '-')
+    bucket_name = sanitize_bucket_name(bucket_name)
     
     create_backend_bucket(bucket_name)
     generate_backend_tf(bucket_name)
