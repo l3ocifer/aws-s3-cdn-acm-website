@@ -4,12 +4,12 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# Import functions from other scripts
-from install_requirements import install_requirements
-from setup_aws import setup_aws
-from setup_terraform import setup_terraform
-from setup_site import setup_site
-from deploy_website import deploy_website
+# Import functions from other scripts using relative imports
+from .install_requirements import install_requirements
+from .setup_aws import setup_aws
+from .setup_terraform import setup_terraform
+from .setup_site import setup_site
+from .deploy_website import deploy_website
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

@@ -12,8 +12,6 @@ def install_python_packages():
     """Install required Python packages using pip."""
     required_packages = [
         'boto3',
-        'botocore',
-        'awscli',
         'requests',
         'python-dotenv'
     ]

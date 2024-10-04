@@ -3,7 +3,7 @@
 import os
 import subprocess
 import logging
-from scripts.customize_site import customize_site  # Import the new module
+from .customize_site import customize_site  # Corrected the import
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
