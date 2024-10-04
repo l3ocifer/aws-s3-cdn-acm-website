@@ -18,6 +18,9 @@ def create_venv():
         logging.info(f"Creating virtual environment at {venv_path}")
         try:
             venv.create(venv_path, with_pip=True)
+            # Ensure pip is installed and updated
+            subprocess.run([os.path.join(venv_path, 'bin', 'python'), '-m', 'ensurepip', '--upgrade'], check=True)
+            subprocess.run([os.path.join(venv_path, 'bin', 'python'), '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
         except Exception as e:
             logging.error(f"Failed to create virtual environment: {str(e)}")
             raise
@@ -25,16 +28,17 @@ def create_venv():
 
 def activate_venv(venv_path):
     if sys.platform == 'win32':
-        activate_script = os.path.join(venv_path, 'Scripts', 'activate_this.py')
+        activate_script = os.path.join(venv_path, 'Scripts', 'activate.bat')
     else:
-        activate_script = os.path.join(venv_path, 'bin', 'activate_this.py')
+        activate_script = os.path.join(venv_path, 'bin', 'activate')
     
     if not os.path.exists(activate_script):
         logging.error(f"Activation script not found: {activate_script}")
         raise FileNotFoundError(f"Activation script not found: {activate_script}")
 
-    with open(activate_script) as f:
-        exec(f.read(), {'__file__': activate_script})
+    # Activate the virtual environment
+    activate_this = os.path.join(venv_path, 'bin', 'activate_this.py')
+    exec(open(activate_this).read(), {'__file__': activate_this})
 
 def install_dependencies(venv_path):
     required_packages = ['requests', 'python-dotenv']
