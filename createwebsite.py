@@ -5,13 +5,30 @@ import os
 import logging
 import sys
 import subprocess
-import requests
 import shutil
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+
+# Check and install required dependencies
+def install_dependencies():
+    required_packages = ['requests', 'python-dotenv']
+    for package in required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            logging.info(f"Installing {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Install dependencies before importing them
+install_dependencies()
+
+import requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+# Load environment variables from .env if it exists
+if os.path.exists('.env'):
+    load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -131,9 +148,6 @@ AWS_PROFILE=default
 
 def main():
     """Entry point for creating a new website."""
-    # Load environment variables from .env
-    load_dotenv()
-    
     # Get domain name
     domain_name = os.getenv('DOMAIN_NAME')
     if not domain_name:
@@ -150,9 +164,11 @@ def main():
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
     if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
-        logging.error("GitHub username and access token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_ACCESS_TOKEN'.")
-        sys.exit(1)
-    
+        GITHUB_USERNAME = input("Enter your GitHub username: ").strip()
+        GITHUB_ACCESS_TOKEN = input("Enter your GitHub access token: ").strip()
+        os.environ['GITHUB_USERNAME'] = GITHUB_USERNAME
+        os.environ['GITHUB_ACCESS_TOKEN'] = GITHUB_ACCESS_TOKEN
+
     logging.info(f"Creating/updating repository: {repo_name}")
     
     # Create GitHub repository
@@ -162,10 +178,13 @@ def main():
     template_repo_url = 'git@github.com:l3ocifer/website.git'  # Template repo SSH URL
     setup_local_repo(repo_name, template_repo_url)
     
+    # Change to the newly created repository directory
+    repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
+    os.chdir(repo_path)
+    
     logging.info("Starting main setup process...")
     # Run main script
-    from scripts.main import main as setup_main
-    setup_main()
+    subprocess.run([sys.executable, 'scripts/main.py'], check=True)
     
     logging.info(f"Website setup complete for {domain_name}")
 
