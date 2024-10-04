@@ -69,6 +69,7 @@ def update_layout_tsx(app_dir, domain_name):
 
     layout_content = f"""import './globals.css'
 import type {{ Metadata }} from "next";
+import Link from 'next/link';
 
 export const metadata: Metadata = {{
   title: "{domain_name}",
@@ -88,10 +89,10 @@ export default function RootLayout({{
             <h1 className="text-2xl font-bold">{domain_name}</h1>
             <nav>
               <ul className="flex space-x-6">
-                <li><a href="/" className="nav-link">Home</a></li>
-                <li><a href="/about" className="nav-link">About</a></li>
-                <li><a href="/services" className="nav-link">Services</a></li>
-                <li><a href="/contact" className="nav-link">Contact</a></li>
+                <li><Link href="/" className="nav-link">Home</Link></li>
+                <li><Link href="/about" className="nav-link">About</Link></li>
+                <li><Link href="/services" className="nav-link">Services</Link></li>
+                <li><Link href="/contact" className="nav-link">Contact</Link></li>
               </ul>
             </nav>
           </div>
@@ -118,13 +119,15 @@ def update_page_tsx(app_dir, domain_name):
     page_tsx_path = os.path.join(app_dir, 'src', 'app', 'page.tsx')
     logging.info(f"Updating {page_tsx_path} with enhanced Home page content.")
 
-    home_page_content = f"""export default function Home() {{
+    home_page_content = f"""import Link from 'next/link';
+
+export default function Home() {{
   return (
     <div className="space-y-12">
       <section className="text-center">
         <h1 className="text-4xl font-bold mb-4">Welcome to {domain_name}</h1>
         <p className="text-xl mb-8">Elevating standards, delivering excellence.</p>
-        <a href="/about" className="btn-primary">Learn More</a>
+        <Link href="/about" className="btn-primary">Learn More</Link>
       </section>
       <section className="grid md:grid-cols-3 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
