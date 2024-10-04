@@ -10,7 +10,7 @@ This project automates the setup of a static website hosted on AWS using Terrafo
 - Terraform
 - Node.js and npm
 
-The script will automatically install the required Python packages (requests and python-dotenv) if they are not already installed.
+The script will automatically create a virtual environment and install the required Python packages (requests and python-dotenv) if they are not already installed.
 
 ## Running the Script
 
@@ -52,6 +52,7 @@ If these are not set, the script will prompt you for the necessary information.
 - SSH Authentication: The script uses SSH for Git operations. Ensure your SSH keys are set up and added to your GitHub account.
 - AWS Configuration: Make sure your AWS CLI is configured (`aws configure`) and you have the necessary permissions.
 - Environment Variables: Sensitive information like `GITHUB_ACCESS_TOKEN` should be handled securely and not committed to version control.
+- Virtual Environment: The script creates a temporary virtual environment for its execution and cleans it up afterwards, regardless of success or failure.
 
 ## Troubleshooting
 

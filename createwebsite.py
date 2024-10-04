@@ -6,22 +6,44 @@ import logging
 import sys
 import subprocess
 import shutil
+import venv
+import atexit
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# Check and install required dependencies
-def install_dependencies():
+def create_venv():
+    venv_path = os.path.expanduser('~/.website_creator_venv')
+    if not os.path.exists(venv_path):
+        logging.info(f"Creating virtual environment at {venv_path}")
+        venv.create(venv_path, with_pip=True)
+    return venv_path
+
+def activate_venv(venv_path):
+    activate_this = os.path.join(venv_path, 'bin', 'activate_this.py')
+    exec(open(activate_this).read(), {'__file__': activate_this})
+
+def install_dependencies(venv_path):
     required_packages = ['requests', 'python-dotenv']
     for package in required_packages:
         try:
             __import__(package)
         except ImportError:
             logging.info(f"Installing {package}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+            subprocess.check_call([os.path.join(venv_path, 'bin', 'pip'), 'install', package])
 
-# Install dependencies before importing them
-install_dependencies()
+def cleanup_venv(venv_path):
+    if os.path.exists(venv_path):
+        logging.info(f"Cleaning up virtual environment at {venv_path}")
+        shutil.rmtree(venv_path)
+
+# Create and activate virtual environment
+venv_path = create_venv()
+atexit.register(cleanup_venv, venv_path)
+
+# Install dependencies in the virtual environment
+activate_venv(venv_path)
+install_dependencies(venv_path)
 
 import requests
 from dotenv import load_dotenv
