@@ -29,46 +29,6 @@ def setup_nextjs_app(domain_name):
     # Install dependencies
     logging.info("Installing Node.js dependencies...")
     subprocess.run(['npm', 'install'], cwd=app_dir, check=True)
-    # Customize the app
-    customize_app(domain_name, app_dir)
-
-def customize_app(domain_name, app_dir):
-    """Customize the Next.js app with the domain name."""
-    # Update next.config.js
-    next_config_path = os.path.join(app_dir, 'next.config.js')
-    with open(next_config_path, 'w') as f:
-        f.write("""
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'export',
-  images: {
-    unoptimized: true,
-  },
-}
-
-module.exports = nextConfig
-""")
-    # Update package.json scripts
-    package_json_path = os.path.join(app_dir, 'package.json')
-    with open(package_json_path, 'r') as f:
-        package_json = json.load(f)
-    package_json['scripts']['build'] = 'next build'
-    with open(package_json_path, 'w') as f:
-        json.dump(package_json, f, indent=2)
-    # Update index page
-    index_page_path = os.path.join(app_dir, 'src', 'app', 'page.tsx')
-    os.makedirs(os.path.dirname(index_page_path), exist_ok=True)
-    with open(index_page_path, 'w') as f:
-        f.write(f"""
-export default function Home() {{
-  return (
-    <main>
-      <h1 className="font-bold text-4xl text-primary">Welcome to {domain_name}</h1>
-    </main>
-  )
-}}
-""")
-    logging.info("Customized Next.js app.")
 
 def build_nextjs_app():
     """Build the Next.js app."""
@@ -79,7 +39,7 @@ def build_nextjs_app():
 def setup_site(domain_name):
     """Set up the website."""
     setup_nextjs_app(domain_name)
-    customize_site(domain_name)
+    customize_site()
     build_nextjs_app()
 
 if __name__ == '__main__':

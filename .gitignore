@@ -24,6 +24,7 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+.terraform.lock.hcl
 
 # AWS
 .aws/
@@ -195,3 +196,6 @@ fabric.properties
 !next-app/package-lock.json
 !next-app/next.config.js
 !next-app/tsconfig.json
+
+# Python
+__pycache__/
