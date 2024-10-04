@@ -6,7 +6,6 @@ import logging
 import sys
 import subprocess
 import shutil
-import venv
 import atexit
 
 # Set up logging
@@ -16,21 +15,24 @@ def create_venv():
     venv_path = os.path.expanduser('~/.website_creator_venv')
     if not os.path.exists(venv_path):
         logging.info(f"Creating virtual environment at {venv_path}")
-        venv.create(venv_path, with_pip=True)
+        subprocess.run([sys.executable, '-m', 'venv', venv_path], check=True)
     return venv_path
 
 def activate_venv(venv_path):
-    activate_this = os.path.join(venv_path, 'bin', 'activate_this.py')
-    exec(open(activate_this).read(), {'__file__': activate_this})
+    if sys.platform == 'win32':
+        activate_script = os.path.join(venv_path, 'Scripts', 'activate.bat')
+    else:
+        activate_script = os.path.join(venv_path, 'bin', 'activate')
+    
+    activate_cmd = f'source "{activate_script}"' if sys.platform != 'win32' else f'call "{activate_script}"'
+    os.environ['VIRTUAL_ENV'] = venv_path
+    os.environ['PATH'] = os.path.join(venv_path, 'bin') + os.pathsep + os.environ['PATH']
+    sys.prefix = venv_path
 
 def install_dependencies(venv_path):
     required_packages = ['requests', 'python-dotenv']
     for package in required_packages:
-        try:
-            __import__(package)
-        except ImportError:
-            logging.info(f"Installing {package}...")
-            subprocess.check_call([os.path.join(venv_path, 'bin', 'pip'), 'install', package])
+        subprocess.run([os.path.join(venv_path, 'bin', 'pip'), 'install', package], check=True)
 
 def cleanup_venv(venv_path):
     if os.path.exists(venv_path):
@@ -42,8 +44,10 @@ venv_path = create_venv()
 atexit.register(cleanup_venv, venv_path)
 
 try:
-    # Install dependencies in the virtual environment
+    # Activate the virtual environment
     activate_venv(venv_path)
+    
+    # Install dependencies in the virtual environment
     install_dependencies(venv_path)
 
     import requests
