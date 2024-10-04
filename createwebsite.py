@@ -238,10 +238,13 @@ def main():
     logging.info("Starting main setup process...")
     # Add the current directory and the scripts directory to Python path
     sys.path.append(os.getcwd())
-    sys.path.append(os.path.join(os.getcwd(), 'scripts'))
+    scripts_dir = os.path.join(os.getcwd(), 'scripts')
+    sys.path.append(scripts_dir)
+    # Set PYTHONPATH environment variable
+    os.environ['PYTHONPATH'] = f"{scripts_dir}:{os.environ.get('PYTHONPATH', '')}"
     # Run main script using the virtual environment's Python executable
     venv_python = sys.executable
-    subprocess.run([venv_python, '-m', 'scripts.main'], check=True)
+    subprocess.run([venv_python, '-m', 'scripts.main'], check=True, env=os.environ)
     
     logging.info(f"Website setup complete for {domain_name}")
 
