@@ -19,7 +19,7 @@ def main():
         logging.info(f"Using domain name: {domain_name}")
 
         try:
-            hosted_zone_id = setup_aws(domain_name)
+            setup_aws(domain_name)
         except Exception as e:
             logging.error(f"AWS setup failed: {str(e)}")
             logging.error("Please ensure your AWS credentials are correctly configured.")
@@ -27,7 +27,7 @@ def main():
             logging.error("or by running 'aws configure' to set up your AWS CLI profile.")
             return
 
-        setup_site(domain_name, hosted_zone_id)
+        setup_site(domain_name)
         logging.info("Website setup completed successfully!")
     except Exception as e:
         logging.error(f"An error occurred during setup: {str(e)}")
