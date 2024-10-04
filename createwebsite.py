@@ -9,6 +9,7 @@ import shutil
 import atexit
 import venv
 import argparse
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -90,8 +91,20 @@ def create_github_repo(repo_name):
             logging.error(f"Response: {e.code} {error_message}")
             sys.exit(1)
 
+def get_last_domain():
+    domain_file = os.path.expanduser('~/.last_website_domain')
+    if os.path.exists(domain_file):
+        with open(domain_file, 'r') as f:
+            return f.read().strip()
+    return None
+
+def save_last_domain(domain):
+    domain_file = os.path.expanduser('~/.last_website_domain')
+    with open(domain_file, 'w') as f:
+        f.write(domain)
+
 def setup_local_repo(repo_name, template_repo_url):
-    """Clone the template repo and set up remotes."""
+    """Set up the local repository and add the template as upstream."""
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     websites_dir = os.path.expanduser('~/git/websites')
     repo_path = os.path.join(websites_dir, repo_name)
@@ -100,38 +113,30 @@ def setup_local_repo(repo_name, template_repo_url):
     if os.path.exists(repo_path):
         shutil.rmtree(repo_path)
 
-    # Clone the template repository
-    subprocess.run(['git', 'clone', template_repo_url, repo_path], check=True)
+    # Clone the repository (this will work for both existing and newly created repos)
+    subprocess.run(['git', 'clone', f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git', repo_path], check=True)
     os.chdir(repo_path)
 
-    # Set up remotes
-    subprocess.run(['git', 'remote', 'rename', 'origin', 'upstream-template'], check=True)
-    subprocess.run(['git', 'remote', 'add', 'origin', f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git'], check=True)
+    # Add template repository as upstream
+    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], check=True)
 
-    # Fetch and checkout master branch
-    subprocess.run(['git', 'fetch', 'origin'], check=True)
-    subprocess.run(['git', 'checkout', '-B', 'master', 'origin/master'], check=True)
+    # Fetch template content
+    subprocess.run(['git', 'fetch', 'upstream-template'], check=True)
+
+    # Merge template content into the master branch
+    subprocess.run(['git', 'merge', 'upstream-template/main', '--allow-unrelated-histories', '-m', "Merge template into master"], check=True)
+
+    # Reset to the current HEAD
+    subprocess.run(['git', 'reset', '--hard', 'HEAD'], check=True)
+
+    # Push changes to the repository
+    subprocess.run(['git', 'push', '-u', 'origin', 'master'], check=True)
 
     # Log current remotes
     result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True, check=True)
     logging.info(f"Current remotes:\n{result.stdout}")
 
-    # Push to GitHub
-    subprocess.run(['git', 'push', '-u', 'origin', 'master'], check=True)
-    logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
-
-    logging.info(f"Set up local repository for '{repo_name}' at '{repo_path}'.")
-    
-    # Change to the newly created repository directory
-    repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
-    os.chdir(repo_path)
-    
-    logging.info("Starting main setup process...")
-    # Run main script using the virtual environment's Python executable
-    venv_python = sys.executable
-    subprocess.run([venv_python, 'scripts/main.py'], check=True)
-    
-    logging.info(f"Website setup complete for {domain_name}")
+    logging.info(f"Successfully set up local repository for '{repo_name}' at '{repo_path}'.")
 
 def create_env_file():
     """Create an .env file with necessary environment variables."""
@@ -187,9 +192,15 @@ def main():
         load_dotenv()
 
     # Get domain name
-    domain_name = os.getenv('DOMAIN_NAME')
-    if not domain_name:
+    last_domain = get_last_domain()
+    if last_domain:
+        domain_name = input(f"Enter the domain name (press Enter to use last domain '{last_domain}'): ").strip()
+        if not domain_name:
+            domain_name = last_domain
+    else:
         domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
+    
+    save_last_domain(domain_name)
     os.environ['DOMAIN_NAME'] = domain_name
     logging.info(f"Using domain name: {domain_name}")
 
