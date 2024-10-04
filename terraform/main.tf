@@ -1,7 +1,10 @@
 # File: terraform/main.tf
 
 terraform {
-  backend "s3" {}
+  backend "s3" {
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" {
