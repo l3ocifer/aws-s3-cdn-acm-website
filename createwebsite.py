@@ -59,7 +59,10 @@ def create_github_repo(repo_name):
 def setup_local_repo(repo_name, template_repo_url):
     """Clone the template repo and set up remotes."""
     GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-    repo_path = os.path.join(os.getcwd(), repo_name)
+    websites_dir = os.path.expanduser('~/git/websites')
+    os.makedirs(websites_dir, exist_ok=True)
+    repo_path = os.path.join(websites_dir, repo_name)
+    
     if os.path.exists(repo_path):
         logging.info(f"Repository already exists at '{repo_path}'. Updating...")
         os.chdir(repo_path)
@@ -68,13 +71,14 @@ def setup_local_repo(repo_name, template_repo_url):
         except subprocess.CalledProcessError as e:
             logging.warning(f"Failed to fetch from origin: {e.stderr}")
             logging.info("Attempting to set up the repository from scratch...")
-            os.chdir('..')
+            os.chdir(websites_dir)
             shutil.rmtree(repo_path)
             subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
             os.chdir(repo_path)
     else:
         # Clone the template repo
         logging.info(f"Cloning template repository '{template_repo_url}' into '{repo_path}'...")
+        os.chdir(websites_dir)
         subprocess.run(['git', 'clone', template_repo_url, repo_name], check=True)
         os.chdir(repo_path)
     
@@ -105,7 +109,7 @@ def setup_local_repo(repo_name, template_repo_url):
         logging.error(f"Failed to push to origin: {e.stderr}")
         logging.info("Please ensure you have the correct access rights and the repository exists.")
     
-    logging.info(f"Set up local repository for '{repo_name}'.")
+    logging.info(f"Set up local repository for '{repo_name}' at '{repo_path}'.")
 
 def create_env_file():
     """Create an .env file with necessary environment variables."""
