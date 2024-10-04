@@ -97,7 +97,7 @@ export default function RootLayout({{
           </div>
         </header>
         <main className="flex-grow container mx-auto px-4 py-8">
-          {children}
+          {{children}}
         </main>
         <footer className="bg-secondary text-white">
           <div className="container mx-auto text-center p-4">
