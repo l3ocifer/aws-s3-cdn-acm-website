@@ -4,6 +4,7 @@
 import os
 import logging
 import sys
+from botocore.exceptions import ProfileNotFound, NoCredentialsError
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,13 @@ def main():
         if not domain_name or not repo_name:
             raise ValueError("DOMAIN_NAME and REPO_NAME environment variables must be set.")
 
-        hosted_zone_id = setup_aws(domain_name)
+        try:
+            hosted_zone_id = setup_aws(domain_name)
+        except (ProfileNotFound, NoCredentialsError) as e:
+            logging.error("AWS credentials are not properly configured.")
+            logging.error("Please run 'aws configure' to set up your AWS credentials.")
+            sys.exit(1)
+
         setup_terraform(f"{repo_name}-tf-state", domain_name, repo_name, hosted_zone_id)
         setup_site(domain_name)
         deploy_website()

@@ -3,7 +3,7 @@
 import boto3
 import os
 import logging
-from botocore.exceptions import NoCredentialsError, ClientError
+from botocore.exceptions import ProfileNotFound, NoCredentialsError
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if present
@@ -13,37 +13,38 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 def setup_aws_credentials():
-    """Check if AWS credentials are configured properly."""
+    """Set up AWS credentials."""
     aws_profile = os.getenv('AWS_PROFILE', 'default')
-    os.environ['AWS_PROFILE'] = aws_profile
-    session = boto3.Session(profile_name=aws_profile)
-    sts = session.client('sts')
     try:
-        identity = sts.get_caller_identity()
-        logging.info(f"AWS credentials are valid for profile '{aws_profile}'.")
-        logging.info(f"Account: {identity['Account']}")
-    except (NoCredentialsError, ClientError) as e:
-        logging.error("AWS credentials are not configured properly.")
-        raise e
+        session = boto3.Session(profile_name=aws_profile)
+        # Test if the credentials are valid
+        session.client('sts').get_caller_identity()
+        logging.info(f"Successfully authenticated with AWS using profile: {aws_profile}")
+    except ProfileNotFound:
+        logging.error(f"AWS profile '{aws_profile}' not found. Please run 'aws configure' to set up your credentials.")
+        raise
+    except NoCredentialsError:
+        logging.error("No AWS credentials found. Please run 'aws configure' to set up your credentials.")
+        raise
+    except Exception as e:
+        logging.error(f"Error authenticating with AWS: {str(e)}")
+        raise
 
 def create_or_get_hosted_zone(domain_name):
-    """Create or get the hosted zone for the domain."""
-    route53 = boto3.client('route53')
-    # Check for existing hosted zone
-    zones = route53.list_hosted_zones_by_name(DNSName=domain_name)
-    for zone in zones['HostedZones']:
-        if zone['Name'] == f"{domain_name}.":
-            logging.info(f"Found existing hosted zone '{zone['Id']}' for domain '{domain_name}'.")
-            return zone['Id']
-    # Create new hosted zone
-    logging.info(f"Creating new hosted zone for domain '{domain_name}'.")
-    response = route53.create_hosted_zone(
-        Name=domain_name,
-        CallerReference=str(hash(domain_name))
-    )
-    zone_id = response['HostedZone']['Id']
-    logging.info(f"Created hosted zone '{zone_id}' for domain '{domain_name}'.")
-    return zone_id
+    """Create or get the Route53 hosted zone for the domain."""
+    client = boto3.client('route53')
+    
+    # Check if the hosted zone already exists
+    hosted_zones = client.list_hosted_zones_by_name(DNSName=domain_name)['HostedZones']
+    for zone in hosted_zones:
+        if zone['Name'] == domain_name + '.':
+            logging.info(f"Found existing hosted zone for {domain_name}")
+            return zone['Id'].split('/')[-1]
+    
+    # If not, create a new hosted zone
+    response = client.create_hosted_zone(Name=domain_name, CallerReference=str(hash(domain_name)))
+    logging.info(f"Created new hosted zone for {domain_name}")
+    return response['HostedZone']['Id'].split('/')[-1]
 
 def setup_aws(domain_name):
     """Set up AWS configuration and hosted zone."""
