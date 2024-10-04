@@ -236,6 +236,8 @@ def main():
     os.chdir(repo_path)
     
     logging.info("Starting main setup process...")
+    # Add the current directory to Python path
+    sys.path.append(os.getcwd())
     # Run main script using the virtual environment's Python executable
     venv_python = sys.executable
     subprocess.run([venv_python, 'scripts/main.py'], check=True)
