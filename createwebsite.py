@@ -7,6 +7,7 @@ import sys
 import subprocess
 import shutil
 import atexit
+import venv
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +16,11 @@ def create_venv():
     venv_path = os.path.expanduser('~/.website_creator_venv')
     if not os.path.exists(venv_path):
         logging.info(f"Creating virtual environment at {venv_path}")
-        subprocess.run([sys.executable, '-m', 'venv', venv_path], check=True)
+        try:
+            venv.create(venv_path, with_pip=True)
+        except Exception as e:
+            logging.error(f"Failed to create virtual environment: {str(e)}")
+            raise
     return venv_path
 
 def activate_venv(venv_path):
@@ -24,6 +29,10 @@ def activate_venv(venv_path):
     else:
         activate_script = os.path.join(venv_path, 'bin', 'activate_this.py')
     
+    if not os.path.exists(activate_script):
+        logging.error(f"Activation script not found: {activate_script}")
+        raise FileNotFoundError(f"Activation script not found: {activate_script}")
+
     with open(activate_script) as f:
         exec(f.read(), {'__file__': activate_script})
 
