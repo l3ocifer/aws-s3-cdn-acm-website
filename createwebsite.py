@@ -108,16 +108,16 @@ def setup_local_repo(repo_name, template_repo_url):
     subprocess.run(['git', 'remote', 'rename', 'origin', 'upstream-template'], check=True)
     subprocess.run(['git', 'remote', 'add', 'origin', f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git'], check=True)
 
-    # Fetch and checkout main branch
+    # Fetch and checkout master branch
     subprocess.run(['git', 'fetch', 'origin'], check=True)
-    subprocess.run(['git', 'checkout', '-B', 'main', 'origin/main'], check=True)
+    subprocess.run(['git', 'checkout', '-B', 'master', 'origin/master'], check=True)
 
     # Log current remotes
     result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True, check=True)
     logging.info(f"Current remotes:\n{result.stdout}")
 
     # Push to GitHub
-    subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True)
+    subprocess.run(['git', 'push', '-u', 'origin', 'master'], check=True)
     logging.info(f"Successfully pushed to GitHub repository '{repo_name}'.")
 
     logging.info(f"Set up local repository for '{repo_name}' at '{repo_path}'.")
