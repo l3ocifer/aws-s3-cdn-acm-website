@@ -2,6 +2,7 @@
 
 terraform {
   backend "s3" {
+    # The bucket name will be provided via backend-config
     key    = "terraform.tfstate"
     region = "us-east-1"
   }

@@ -19,11 +19,17 @@ def sync_s3_bucket(bucket_name, source_dir):
     """Sync the built Next.js app to the S3 bucket."""
     s3 = boto3.client('s3')
     logging.info(f"Uploading files from '{source_dir}' to S3 bucket '{bucket_name}'...")
+    
     for root, dirs, files in os.walk(source_dir):
         for file in files:
             local_path = os.path.join(root, file)
             s3_key = os.path.relpath(local_path, source_dir)
-            s3.upload_file(local_path, bucket_name, s3_key)
+            try:
+                s3.upload_file(local_path, bucket_name, s3_key)
+                logging.info(f"Uploaded {s3_key} to {bucket_name}")
+            except ClientError as e:
+                logging.error(f"Error uploading {s3_key}: {str(e)}")
+
     logging.info(f"Files uploaded to S3 bucket '{bucket_name}'.")
 
 def invalidate_cloudfront(distribution_id):
@@ -53,6 +59,11 @@ def deploy_website():
     """Deploy the website to AWS."""
     source_dir = 'next-app/out'
     s3_bucket_name, distribution_id = get_terraform_outputs()
+    
+    # Ensure the Next.js app is built
+    logging.info("Building Next.js app...")
+    subprocess.run(['npm', 'run', 'build'], cwd='next-app', check=True)
+    
     sync_s3_bucket(s3_bucket_name, source_dir)
     invalidate_cloudfront(distribution_id)
     logging.info("Website deployed successfully.")

@@ -30,7 +30,7 @@ website_bucket_name = "{website_bucket_name}"
 def init_and_apply(tf_state_bucket_name):
     """Initialize and apply Terraform configuration."""
     backend_config = f"-backend-config=bucket={tf_state_bucket_name} -backend-config=key=terraform.tfstate -backend-config=region=us-east-1"
-    subprocess.run(['terraform', 'init'] + backend_config.split(), cwd='terraform', check=True)
+    subprocess.run(['terraform', 'init', '-reconfigure'] + backend_config.split(), cwd='terraform', check=True)
     subprocess.run(['terraform', 'apply', '-auto-approve'], cwd='terraform', check=True)
     logging.info("Applied Terraform configuration.")
 
