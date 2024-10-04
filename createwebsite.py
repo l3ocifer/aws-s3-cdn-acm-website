@@ -142,22 +142,12 @@ def setup_local_repo(repo_name, template_repo_url):
 
     logging.info(f"Successfully set up local repository for '{repo_name}' at '{repo_path}'.")
 
-def create_env_file():
-    """Create an .env file with necessary environment variables."""
-    DOMAIN_NAME = os.getenv('DOMAIN_NAME')
-    REPO_NAME = os.getenv('REPO_NAME')
-    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
-    content = f"""# Environment Variables
-DOMAIN_NAME={DOMAIN_NAME}
-REPO_NAME={REPO_NAME}
-GITHUB_USERNAME={GITHUB_USERNAME}
-GITHUB_ACCESS_TOKEN={GITHUB_ACCESS_TOKEN}
-AWS_PROFILE=default
-"""
-    with open('.env', 'w') as f:
-        f.write(content)
-    logging.info("Created .env file with environment variables.")
+def get_terraform_variable(var_name):
+    try:
+        output = subprocess.check_output(['terraform', 'output', '-raw', var_name], cwd='terraform')
+        return output.decode('utf-8').strip()
+    except subprocess.CalledProcessError:
+        return None
 
 def main():
     """Entry point for creating a new website."""
@@ -196,34 +186,13 @@ def main():
         load_dotenv()
 
     # Get domain name
-    last_domain = get_last_domain()
-    if last_domain:
-        domain_name = input(f"Enter the domain name (press Enter to use last domain '{last_domain}'): ").strip()
-        if not domain_name:
-            domain_name = last_domain
-    else:
-        domain_name = input("Enter the domain name (must be registered in AWS Route53): ").strip()
-    
-    save_last_domain(domain_name)
-    os.environ['DOMAIN_NAME'] = domain_name
+    domain_name = get_terraform_variable('domain_name')
+    repo_name = get_terraform_variable('repo_name')
+    if not domain_name or not repo_name:
+        raise ValueError("domain_name and repo_name must be set in Terraform variables.")
     logging.info(f"Using domain name: {domain_name}")
-
-    repo_name = os.getenv('REPO_NAME')
-    if not repo_name:
-        repo_name = sanitize_domain_name(domain_name)
-    os.environ['REPO_NAME'] = repo_name
     logging.info(f"Using repository name: {repo_name}")
 
-    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
-    GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
-    if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
-        GITHUB_USERNAME = input("Enter your GitHub username: ").strip()
-        GITHUB_ACCESS_TOKEN = input("Enter your GitHub access token: ").strip()
-        os.environ['GITHUB_USERNAME'] = GITHUB_USERNAME
-        os.environ['GITHUB_ACCESS_TOKEN'] = GITHUB_ACCESS_TOKEN
-
-    logging.info(f"Creating/updating repository: {repo_name}")
-    
     # Create GitHub repository
     create_github_repo(repo_name)
     

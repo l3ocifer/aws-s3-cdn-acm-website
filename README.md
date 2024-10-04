@@ -31,21 +31,20 @@ The script will:
 - Sanitize the domain name to create a repository name
 - Create a new private GitHub repository in your account
 - Clone the template repository and set up remotes
-- Generate an .env file with environment variables
 - Set up AWS infrastructure using Terraform
 - Initialize and customize a Next.js app
 - Deploy the website to AWS
 
 ## Environment Variables
 
-You can set the following environment variables before running the script:
+The following Terraform variables are used:
 
-- `GITHUB_USERNAME`: Your GitHub username
-- `GITHUB_ACCESS_TOKEN`: Your GitHub personal access token
-- `DOMAIN_NAME`: The domain name for your website
-- `AWS_PROFILE` (optional): The AWS CLI profile to use (default is 'default')
+- `domain_name`: The domain name for your website
+- `repo_name`: The name of the GitHub repository
+- `tf_state_bucket_name`: The name of the S3 bucket for Terraform state
+- `website_bucket_name`: The name of the S3 bucket for the website
 
-If these are not set, the script will prompt you for the necessary information.
+These variables are managed through Terraform and do not need to be set as environment variables.
 
 ## Notes
 
