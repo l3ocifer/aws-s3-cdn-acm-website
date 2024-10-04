@@ -126,7 +126,8 @@ def setup_local_repo(repo_name, template_repo_url):
     # Check if the local repository is empty
     result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True)
     if result.returncode != 0:
-        # If the repository is empty, create an initial commit
+        # If the repository is empty, create an initial commit on master branch
+        subprocess.run(['git', 'checkout', '-b', 'master'], check=True)
         subprocess.run(['git', 'commit', '--allow-empty', '-m', "Initial commit"], check=True)
 
     # Merge template content into the master branch
