@@ -14,30 +14,17 @@ logging.basicConfig(level=logging.INFO)
 
 def setup_aws_credentials():
     """Set up AWS credentials using the specified profile."""
-    aws_profile = os.getenv('AWS_PROFILE')
-    aws_region = os.getenv('AWS_REGION')
-
-    if not aws_profile:
-        logging.error("AWS_PROFILE is not set. Please set it and try again.")
-        raise ValueError("AWS_PROFILE is not set")
-
+    # Get the AWS profile from environment variable, fallback to 'default' if not set
+    aws_profile = os.environ.get('AWS_PROFILE') or os.environ.get('AWS_DEFAULT_PROFILE', 'default')
+    
     try:
-        session = boto3.Session(profile_name=aws_profile, region_name=aws_region)
-        # Test if the credentials are valid
-        sts_client = session.client('sts')
-        sts_client.get_caller_identity()
-        logging.info(f"Successfully authenticated with AWS using profile: {aws_profile}")
-        if aws_region:
-            logging.info(f"Using AWS region: {aws_region}")
-        return session
-    except ProfileNotFound:
-        logging.error(f"AWS profile '{aws_profile}' not found. Please check your AWS configuration.")
-        raise
-    except NoCredentialsError:
-        logging.error(f"No valid credentials found for profile '{aws_profile}'. Please check your AWS configuration.")
-        raise
-    except ClientError as e:
-        logging.error(f"Error authenticating with AWS: {str(e)}")
+        session = boto3.Session(profile_name=aws_profile)
+        # Test the credentials by making a simple API call
+        sts = session.client('sts')
+        sts.get_caller_identity()
+        logging.info(f"Successfully authenticated using AWS profile: {aws_profile}")
+    except Exception as e:
+        logging.error(f"Failed to authenticate with AWS using profile {aws_profile}. Error: {str(e)}")
         raise
 
 def create_or_get_hosted_zone(session, domain_name):
