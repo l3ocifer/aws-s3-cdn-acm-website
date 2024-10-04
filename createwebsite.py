@@ -29,16 +29,19 @@ def create_venv():
 def activate_venv(venv_path):
     if sys.platform == 'win32':
         activate_script = os.path.join(venv_path, 'Scripts', 'activate.bat')
+        python_executable = os.path.join(venv_path, 'Scripts', 'python.exe')
     else:
         activate_script = os.path.join(venv_path, 'bin', 'activate')
+        python_executable = os.path.join(venv_path, 'bin', 'python')
     
     if not os.path.exists(activate_script):
         logging.error(f"Activation script not found: {activate_script}")
         raise FileNotFoundError(f"Activation script not found: {activate_script}")
 
-    # Activate the virtual environment
-    activate_this = os.path.join(venv_path, 'bin', 'activate_this.py')
-    exec(open(activate_this).read(), {'__file__': activate_this})
+    # Update PATH and other environment variables
+    os.environ['VIRTUAL_ENV'] = venv_path
+    os.environ['PATH'] = os.pathsep.join([os.path.dirname(python_executable), os.environ.get('PATH', '')])
+    os.environ.pop('PYTHONHOME', None)
 
 def install_dependencies(venv_path):
     required_packages = ['requests', 'python-dotenv']
