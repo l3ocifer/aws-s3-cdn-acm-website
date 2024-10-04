@@ -16,21 +16,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 def sync_s3_bucket(bucket_name, source_dir):
-    """Sync the built Next.js app to the S3 bucket."""
-    s3 = boto3.client('s3')
-    logging.info(f"Uploading files from '{source_dir}' to S3 bucket '{bucket_name}'...")
-    
-    for root, dirs, files in os.walk(source_dir):
-        for file in files:
-            local_path = os.path.join(root, file)
-            s3_key = os.path.relpath(local_path, source_dir)
-            try:
-                s3.upload_file(local_path, bucket_name, s3_key)
-                logging.info(f"Uploaded {s3_key} to {bucket_name}")
-            except ClientError as e:
-                logging.error(f"Error uploading {s3_key}: {str(e)}")
-
-    logging.info(f"Files uploaded to S3 bucket '{bucket_name}'.")
+    """Sync the built Next.js app to the S3 bucket using AWS CLI."""
+    logging.info(f"Syncing files from '{source_dir}' to S3 bucket '{bucket_name}'...")
+    subprocess.run(['aws', 's3', 'sync', source_dir, f's3://{bucket_name}', '--delete'], check=True)
+    logging.info(f"Files synced to S3 bucket '{bucket_name}'.")
 
 def invalidate_cloudfront(distribution_id):
     """Invalidate the CloudFront distribution to refresh content."""
@@ -51,19 +40,21 @@ def get_terraform_outputs():
     logging.info("Retrieving Terraform outputs...")
     output = subprocess.check_output(['terraform', 'output', '-json'], cwd='terraform')
     outputs = json.loads(output)
-    s3_bucket_name = outputs['s3_bucket_name']['value']
-    cloudfront_distribution_id = outputs['cloudfront_distribution_id']['value']
-    return s3_bucket_name, cloudfront_distribution_id
+    return outputs['s3_bucket_name']['value'], outputs['cloudfront_distribution_id']['value']
+
+def build_and_export(app_dir):
+    """Build and export the Next.js app."""
+    logging.info("Building and exporting Next.js app...")
+    subprocess.run(['npm', 'run', 'build'], cwd=app_dir, check=True)
+    subprocess.run(['npx', 'next', 'export'], cwd=app_dir, check=True)
 
 def deploy_website():
     """Deploy the website to AWS."""
-    source_dir = 'next-app/out'
+    app_dir = 'next-app'
+    source_dir = os.path.join(app_dir, 'out')
     s3_bucket_name, distribution_id = get_terraform_outputs()
     
-    # Ensure the Next.js app is built
-    logging.info("Building Next.js app...")
-    subprocess.run(['npm', 'run', 'build'], cwd='next-app', check=True)
-    
+    build_and_export(app_dir)
     sync_s3_bucket(s3_bucket_name, source_dir)
     invalidate_cloudfront(distribution_id)
     logging.info("Website deployed successfully.")
