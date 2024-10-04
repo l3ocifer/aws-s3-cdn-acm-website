@@ -55,6 +55,12 @@ def apply_main_config():
 def create_s3_bucket(bucket_name):
     """Create an S3 bucket for Terraform state if it doesn't exist."""
     s3 = boto3.client('s3')
+    
+    # Ensure bucket name is valid
+    bucket_name = bucket_name.lower()
+    bucket_name = ''.join(c for c in bucket_name if c.isalnum() or c in ['-', '.'])
+    bucket_name = bucket_name[:63]  # Truncate to 63 characters if longer
+    
     try:
         s3.head_bucket(Bucket=bucket_name)
         logging.info(f"S3 bucket '{bucket_name}' already exists.")
