@@ -1,7 +1,7 @@
 Website Creation Automation
 This project automates the setup of a static website hosted on AWS using Terraform and Next.js. It sets up a git repo at ~/git/websites/<your-new-repo>, downloads this template and sets it as an upstream remote, sets up an s3 backend using python, and uses terraform to build AWS infrastructure including a s3 bucket for the website, OAC & Cloudfront distro, and route53 records; then it initializes a Next.js app, customizes it, and deploys it to AWS S3 and CloudFront.
 
-# Prerequisites
+## Prerequisites
 
 - Python 3.6 or higher
 - pip (Python package installer)
