@@ -60,10 +60,9 @@ def check_pending_operations(domain_name):
     client = boto3.client('route53domains')
     try:
         response = client.list_operations(
-            StatusFilter='IN_PROGRESS',
             SubmittedSince=datetime.now() - timedelta(days=30)
         )
-        pending_ops = [op['OperationId'] for op in response['Operations'] if op['DomainName'] == domain_name]
+        pending_ops = [op['OperationId'] for op in response['Operations'] if op['Status'] == 'IN_PROGRESS' and op['DomainName'] == domain_name]
         
         if pending_ops:
             logging.info(f"Pending operations found for {domain_name}. Waiting for completion...")

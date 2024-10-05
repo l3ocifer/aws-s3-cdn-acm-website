@@ -33,7 +33,9 @@ def main():
             logging.error("Please ensure your AWS credentials are correctly configured.")
             logging.error("You can set them using environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY,")
             logging.error("or by running 'aws configure' to set up your AWS CLI profile.")
-            return
+            logging.error(f"Current AWS profile: {os.environ.get('AWS_PROFILE', 'Not set')}")
+            logging.error(f"Current AWS region: {os.environ.get('AWS_DEFAULT_REGION', 'Not set')}")
+            raise
 
         # Set up Terraform and provision AWS infrastructure
         try:
