@@ -22,7 +22,7 @@ def create_venv():
             venv.create(venv_path, with_pip=True)
             # Ensure pip is installed and updated
             subprocess.run([os.path.join(venv_path, 'bin', 'python'), '-m', 'ensurepip', '--upgrade'], check=True)
-            subprocess.run([os.path.join(venv_path, 'bin', 'python'), '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
+            subprocess.run([os.path.join(venv_path, 'bin', 'pip'), 'install', '--upgrade', 'pip'], check=True)
         except Exception as e:
             logging.error(f"Failed to create virtual environment: {str(e)}")
             raise
@@ -52,17 +52,16 @@ def sanitize_domain_name(domain_name):
     repo_name = repo_name.replace('.', '_')
     return repo_name
 
-def create_github_repo(repo_name):
+def create_github_repo(repo_name, org_name=None):
     """Create a new private GitHub repository."""
     import urllib.request
     import json
 
-    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
     GITHUB_ACCESS_TOKEN = os.getenv('GITHUB_ACCESS_TOKEN')
-    if not GITHUB_USERNAME or not GITHUB_ACCESS_TOKEN:
-        logging.error("GitHub username and access token must be set in environment variables 'GITHUB_USERNAME' and 'GITHUB_ACCESS_TOKEN'.")
+    if not GITHUB_ACCESS_TOKEN:
+        logging.error("GitHub access token must be set in environment variable 'GITHUB_ACCESS_TOKEN'.")
         sys.exit(1)
-    api_url = 'https://api.github.com/user/repos'
+    api_url = 'https://api.github.com/user/repos' if not org_name else f'https://api.github.com/orgs/{org_name}/repos'
     headers = {
         'Authorization': f'token {GITHUB_ACCESS_TOKEN}',
         'Accept': 'application/vnd.github.v3+json'
@@ -103,9 +102,25 @@ def save_last_domain(domain):
     with open(domain_file, 'w') as f:
         f.write(domain)
 
-def setup_local_repo(repo_name, template_repo_url):
+def get_last_org():
+    org_file = os.path.expanduser('~/.last_github_org')
+    if os.path.exists(org_file):
+        with open(org_file, 'r') as f:
+            return f.read().strip()
+    return None
+
+def save_last_org(org_name):
+    org_file = os.path.expanduser('~/.last_github_org')
+    with open(org_file, 'w') as f:
+        f.write(org_name)
+
+def setup_local_repo(repo_name, template_repo_url, org_name=None):
     """Set up the local repository and add the template as upstream."""
-    GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
+    repo_owner = org_name if org_name else os.getenv('GITHUB_USERNAME')
+    if not repo_owner:
+        logging.error("GitHub username or organization must be set.")
+        sys.exit(1)
+
     websites_dir = os.path.expanduser('~/git/websites')
     repo_path = os.path.join(websites_dir, repo_name)
 
@@ -114,7 +129,7 @@ def setup_local_repo(repo_name, template_repo_url):
         shutil.rmtree(repo_path)
 
     # Clone the repository (this will work for both existing and newly created repos)
-    subprocess.run(['git', 'clone', f'git@github.com:{GITHUB_USERNAME}/{repo_name}.git', repo_path], check=True)
+    subprocess.run(['git', 'clone', f'git@github.com:{repo_owner}/{repo_name}.git', repo_path], check=True)
     os.chdir(repo_path)
 
     # Add template repository as upstream
@@ -197,17 +212,27 @@ def main():
     os.environ['DOMAIN_NAME'] = domain_name
     os.environ['REPO_NAME'] = repo_name
 
+    # Prompt for organization or personal account
+    last_org = get_last_org()
+    use_org = input(f"Do you want to use an organization for the repository? (y/n, default: n): ").strip().lower() == 'y'
+    org_name = None
+    if use_org:
+        org_name = input(f"Enter the organization name (last used: {last_org}): ").strip() or last_org
+        if not org_name:
+            raise ValueError("Organization name must be provided.")
+        save_last_org(org_name)
+
     # Create GitHub repository
-    create_github_repo(repo_name)
-    
+    create_github_repo(repo_name, org_name)
+
     # Clone the template repository and set up remotes
     template_repo_url = 'git@github.com:l3ocifer/aws-s3-cdn-acm-website.git'  # Template repo SSH URL
-    setup_local_repo(repo_name, template_repo_url)
-    
+    setup_local_repo(repo_name, template_repo_url, org_name)
+
     # Change to the newly created repository directory
     repo_path = os.path.join(os.path.expanduser('~/git/websites'), repo_name)
     os.chdir(repo_path)
-    
+
     logging.info("Starting main setup process...")
     # Add the current directory and the scripts directory to Python path
     sys.path.append(os.getcwd())
@@ -218,8 +243,8 @@ def main():
     # Run main script using the virtual environment's Python executable
     venv_python = sys.executable
     subprocess.run([venv_python, '-m', 'scripts.main'], check=True, env=os.environ)
-    
+
     logging.info(f"Website setup complete for {domain_name}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

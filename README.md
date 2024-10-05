@@ -1,5 +1,5 @@
 Website Creation Automation
-This project automates the setup of a static website hosted on AWS using Terraform and Next.js. It sets up a git repo at ~/git/websites/<your-new-repo>, downloads this template and sets it as an upstream remote, sets up an s3 backen d using python, and uses terraform to build AWS infrastructure including a s3 bucket for the website, OAC & Cloudfront distro, and route53 records; then it initializes a Next.js app, customizes it, and deploys it to AWS S3 and CloudFront.
+This project automates the setup of a static website hosted on AWS using Terraform and Next.js. It sets up a git repo at ~/git/websites/<your-new-repo>, downloads this template and sets it as an upstream remote, sets up an s3 backend using python, and uses terraform to build AWS infrastructure including a s3 bucket for the website, OAC & Cloudfront distro, and route53 records; then it initializes a Next.js app, customizes it, and deploys it to AWS S3 and CloudFront.
 
 ## Prerequisites
 
@@ -66,3 +66,22 @@ This project is licensed under the Leo Paska License.
 ## Teardown Process
 
 To completely remove the website and all associated resources, use the `teardown_website.py` script - it mostly works...
+
+## Updating the Website
+
+After making changes to your Next.js app, you can update the deployed website using the `update_site.sh` script:
+
+1. Make sure you're in the root directory of your website project.
+
+2. Run the update script:
+
+   ```bash
+   ./update_site.sh
+   ```
+
+This script will:
+- Build the Next.js app
+- Sync the built files to the S3 bucket
+- Invalidate the CloudFront distribution cache
+
+Make sure you have the necessary AWS credentials configured before running the update script.
