@@ -14,17 +14,23 @@ logging.basicConfig(level=logging.INFO)
 
 def sync_s3_bucket(bucket_name, source_dir):
     """Sync the built Next.js app to the S3 bucket using AWS CLI."""
-    logging.info(f"Syncing files from '{source_dir}' to S3 bucket '{bucket_name}'...")
-    subprocess.run(['aws', 's3', 'sync', source_dir, f's3://{bucket_name}', '--delete', '--cache-control', 'no-store,max-age=0'], check=True)
+    aws_profile = os.environ.get('AWS_PROFILE')
+    if not aws_profile:
+        raise ValueError("AWS_PROFILE environment variable must be set")
+    logging.info(f"Syncing files from '{source_dir}' to S3 bucket '{bucket_name}' using profile '{aws_profile}'...")
+    subprocess.run(['aws', '--profile', aws_profile, 's3', 'sync', source_dir, f's3://{bucket_name}', '--delete', '--cache-control', 'no-store,max-age=0'], check=True)
     logging.info(f"Files synced to S3 bucket '{bucket_name}'.")
 
 def invalidate_cloudfront(distribution_id):
     """Invalidate the CloudFront distribution to refresh content."""
     try:
-        session = boto3.Session(region_name='us-east-1')  # CloudFront requires us-east-1
+        aws_profile = os.environ.get('AWS_PROFILE')
+        if not aws_profile:
+            raise ValueError("AWS_PROFILE environment variable must be set")
+        session = boto3.Session(profile_name=aws_profile, region_name='us-east-1')
         cf = session.client('cloudfront')
         caller_reference = str(time.time())
-        logging.info(f"Creating invalidation for CloudFront distribution '{distribution_id}'...")
+        logging.info(f"Creating invalidation for CloudFront distribution '{distribution_id}' using profile '{aws_profile}'...")
         invalidation = cf.create_invalidation(
             DistributionId=distribution_id,
             InvalidationBatch={
