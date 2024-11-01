@@ -42,17 +42,26 @@ def main():
             setup_terraform(domain_name, repo_name, hosted_zone_id)
         except Exception as e:
             logging.error(f"Failed to set up Terraform: {str(e)}")
-            return
+            raise
 
-        # Set up and customize the Next.js site
-        setup_site(domain_name)
+        # Set up and customize the Next.js site, or rebuild if it exists
+        try:
+            setup_site(domain_name)
+        except Exception as e:
+            logging.error(f"Failed to set up or rebuild site: {str(e)}")
+            raise
 
         # Deploy the website
-        deploy_website()
+        try:
+            deploy_website()
+        except Exception as e:
+            logging.error(f"Failed to deploy website: {str(e)}")
+            raise
 
         logging.info("Website setup and deployment completed successfully!")
     except Exception as e:
         logging.error(f"An error occurred during setup: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     main()

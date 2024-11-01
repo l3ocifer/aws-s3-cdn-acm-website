@@ -32,10 +32,22 @@ def build_nextjs_app():
     logging.info("Next.js app built successfully.")
 
 def setup_site(domain_name):
-    """Set up the website."""
-    setup_nextjs_app(domain_name)
-    customize_site(domain_name)
+    """Set up or rebuild the website."""
+    app_dir = 'next-app'
+    
+    # Check if Next.js app exists and is properly initialized
+    if not os.path.exists(app_dir) or not os.path.exists(os.path.join(app_dir, 'package.json')):
+        logging.info("Setting up new Next.js application...")
+        setup_nextjs_app(domain_name)
+        customize_site(domain_name)
+    else:
+        logging.info("Next.js app already exists, checking for changes...")
+        # Always customize site to ensure latest changes are applied
+        customize_site(domain_name)
+    
+    # Build the app regardless of whether it's new or existing
     build_nextjs_app()
+    logging.info("Site setup/rebuild complete!")
 
 if __name__ == '__main__':
     import sys
