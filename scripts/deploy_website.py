@@ -20,17 +20,22 @@ def sync_s3_bucket(bucket_name, source_dir):
 
 def invalidate_cloudfront(distribution_id):
     """Invalidate the CloudFront distribution to refresh content."""
-    cf = boto3.client('cloudfront')
-    caller_reference = str(time.time())
-    logging.info(f"Creating invalidation for CloudFront distribution '{distribution_id}'...")
-    invalidation = cf.create_invalidation(
-        DistributionId=distribution_id,
-        InvalidationBatch={
-            'Paths': {'Quantity': 1, 'Items': ['/*']},
-            'CallerReference': caller_reference
-        }
-    )
-    logging.info(f"Invalidation '{invalidation['Invalidation']['Id']}' created.")
+    try:
+        session = boto3.Session(region_name='us-east-1')  # CloudFront requires us-east-1
+        cf = session.client('cloudfront')
+        caller_reference = str(time.time())
+        logging.info(f"Creating invalidation for CloudFront distribution '{distribution_id}'...")
+        invalidation = cf.create_invalidation(
+            DistributionId=distribution_id,
+            InvalidationBatch={
+                'Paths': {'Quantity': 1, 'Items': ['/*']},
+                'CallerReference': caller_reference
+            }
+        )
+        logging.info(f"Invalidation '{invalidation['Invalidation']['Id']}' created.")
+    except Exception as e:
+        logging.error(f"Failed to create CloudFront invalidation: {str(e)}")
+        raise
 
 def get_terraform_outputs():
     """Get outputs from Terraform."""
