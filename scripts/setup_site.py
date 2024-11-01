@@ -9,31 +9,28 @@ from scripts.customize_site import customize_site
 logging.basicConfig(level=logging.INFO)
 
 def check_node_version():
-    """Check if Node.js version meets requirements."""
+    """Check if Node.js version meets requirements and set it."""
     try:
-        # First try to use nvm to set the correct version
-        try:
-            subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && nvm use 18.18.0 || nvm install 18.18.0 && nvm use 18.18.0'], check=True)
-            return True
-        except subprocess.CalledProcessError:
-            # If nvm fails, check system node version
-            node_version = subprocess.check_output(['node', '--version']).decode().strip().lstrip('v')
-            required_version = '18.18.0'
-            current_parts = [int(x) for x in node_version.split('.')]
-            required_parts = [int(x) for x in required_version.split('.')]
-            
-            if current_parts < required_parts:
-                logging.error(f"Node.js version {node_version} is below required version {required_version}")
-                raise ValueError(
-                    "Please install Node.js >= 18.18.0 using one of these methods:\n"
-                    "1. Install nvm (recommended): https://github.com/nvm-sh/nvm#installing-and-updating\n"
-                    "2. Install Node.js directly: https://nodejs.org/\n"
-                    "Current Node.js version: {node_version}"
-                )
+        # First ensure nvm is loaded and the correct version is installed
+        setup_cmd = (
+            'export NVM_DIR="$HOME/.nvm" && '
+            '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+            'nvm install 18.18.0 && '
+            'nvm alias default 18.18.0 && '
+            'nvm use default'
+        )
+        subprocess.run(['bash', '-c', setup_cmd], check=True)
+        
+        # Verify the version is correct
+        node_version = subprocess.check_output(['bash', '-c', 'source ~/.nvm/nvm.sh && node --version'], text=True).strip()
+        if not node_version.startswith('v18.18.0'):
+            raise ValueError(f"Node.js version mismatch. Got {node_version}, expected v18.18.0")
+        
+        logging.info(f"Using Node.js version: {node_version}")
+        return True
     except Exception as e:
-        logging.error(f"Failed to check/update Node.js version: {str(e)}")
+        logging.error(f"Failed to set up Node.js version: {str(e)}")
         raise
-    return True
 
 def setup_nextjs_app(domain_name):
     """Set up the Next.js application."""
@@ -46,20 +43,33 @@ def setup_nextjs_app(domain_name):
     else:
         logging.info("Creating Next.js app...")
         # Use the correct Node.js version from nvm for npx
-        subprocess.run([
-            'bash', '-c',
-            'source ~/.nvm/nvm.sh && npx --yes create-next-app@latest next-app --typescript --tailwind --eslint --app --src-dir --import-alias @/* --use-npm --yes'
-        ], check=True)
+        create_cmd = (
+            'export NVM_DIR="$HOME/.nvm" && '
+            '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+            'npx --yes create-next-app@latest next-app '
+            '--typescript --tailwind --eslint --app --src-dir --import-alias @/* --use-npm --yes'
+        )
+        subprocess.run(['bash', '-c', create_cmd], check=True)
     
     # Install dependencies using the correct Node.js version
     logging.info("Installing Node.js dependencies...")
-    subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && cd next-app && npm install'], check=True)
+    install_cmd = (
+        'export NVM_DIR="$HOME/.nvm" && '
+        '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+        'cd next-app && npm install'
+    )
+    subprocess.run(['bash', '-c', install_cmd], check=True)
 
 def build_nextjs_app():
     """Build the Next.js app."""
     logging.info("Building Next.js app...")
     # Use the correct Node.js version for building
-    subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && cd next-app && npm run build'], check=True)
+    build_cmd = (
+        'export NVM_DIR="$HOME/.nvm" && '
+        '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+        'cd next-app && npm run build'
+    )
+    subprocess.run(['bash', '-c', build_cmd], check=True)
     logging.info("Next.js app built successfully.")
 
 def setup_site(domain_name):
