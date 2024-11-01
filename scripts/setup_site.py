@@ -78,10 +78,12 @@ def build_nextjs_app():
     logging.info("Building Next.js app...")
     build_cmd = (
         'export NVM_DIR="$HOME/.nvm" && '
-        '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+        '[ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh" && '
         'PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH" && '
         'hash -r && '
-        'cd next-app && npm run build'
+        'cd next-app && '
+        'npm install && '
+        'npm run build'
     )
     subprocess.run(['bash', '-c', build_cmd], check=True)
     logging.info("Next.js app built successfully.")
