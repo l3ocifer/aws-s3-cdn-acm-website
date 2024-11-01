@@ -39,24 +39,16 @@ def get_terraform_outputs():
     outputs = json.loads(output)
     return outputs['s3_bucket_name']['value'], outputs['cloudfront_distribution_id']['value']
 
-def build_next_app(app_dir):
-    """Build the Next.js app."""
-    logging.info("Building Next.js app...")
-    subprocess.run(['npm', 'run', 'build'], cwd=app_dir, check=True)
-
 def deploy_website():
     """Deploy the website to AWS."""
     app_dir = 'next-app'
     source_dir = os.path.join(app_dir, 'out')
     
     try:
-        # Get current site hash before building
+        # Get current site hash
         old_hash = get_site_hash(source_dir) if os.path.exists(source_dir) else None
         
-        # Build the site
-        build_next_app(app_dir)
-        
-        # Get new site hash
+        # Skip building as it's already done by setup_site
         new_hash = get_site_hash(source_dir)
         
         # Only deploy if hashes differ or old hash doesn't exist
