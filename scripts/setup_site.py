@@ -8,27 +8,58 @@ from scripts.customize_site import customize_site
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
+def check_node_version():
+    """Check if Node.js version meets requirements."""
+    try:
+        # First try to use nvm to set the correct version
+        try:
+            subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && nvm use 18.18.0 || nvm install 18.18.0 && nvm use 18.18.0'], check=True)
+            return True
+        except subprocess.CalledProcessError:
+            # If nvm fails, check system node version
+            node_version = subprocess.check_output(['node', '--version']).decode().strip().lstrip('v')
+            required_version = '18.18.0'
+            current_parts = [int(x) for x in node_version.split('.')]
+            required_parts = [int(x) for x in required_version.split('.')]
+            
+            if current_parts < required_parts:
+                logging.error(f"Node.js version {node_version} is below required version {required_version}")
+                raise ValueError(
+                    "Please install Node.js >= 18.18.0 using one of these methods:\n"
+                    "1. Install nvm (recommended): https://github.com/nvm-sh/nvm#installing-and-updating\n"
+                    "2. Install Node.js directly: https://nodejs.org/\n"
+                    "Current Node.js version: {node_version}"
+                )
+    except Exception as e:
+        logging.error(f"Failed to check/update Node.js version: {str(e)}")
+        raise
+    return True
+
 def setup_nextjs_app(domain_name):
     """Set up the Next.js application."""
+    # Check Node.js version before proceeding
+    check_node_version()
+    
     app_dir = 'next-app'
     if os.path.exists(app_dir):
         logging.info("Next.js app already exists. Skipping creation.")
     else:
         logging.info("Creating Next.js app...")
+        # Use the correct Node.js version from nvm for npx
         subprocess.run([
-            'npx', '--yes', 'create-next-app@latest', app_dir,
-            '--typescript', '--tailwind', '--eslint',
-            '--app', '--src-dir', '--import-alias', '@/*',
-            '--use-npm', '--yes'
+            'bash', '-c',
+            'source ~/.nvm/nvm.sh && npx --yes create-next-app@latest next-app --typescript --tailwind --eslint --app --src-dir --import-alias @/* --use-npm --yes'
         ], check=True)
-    # Install dependencies
+    
+    # Install dependencies using the correct Node.js version
     logging.info("Installing Node.js dependencies...")
-    subprocess.run(['npm', 'install'], cwd=app_dir, check=True)
+    subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && cd next-app && npm install'], check=True)
 
 def build_nextjs_app():
     """Build the Next.js app."""
     logging.info("Building Next.js app...")
-    subprocess.run(['npm', 'run', 'build'], cwd='next-app', check=True)
+    # Use the correct Node.js version for building
+    subprocess.run(['bash', '-c', 'source ~/.nvm/nvm.sh && cd next-app && npm run build'], check=True)
     logging.info("Next.js app built successfully.")
 
 def setup_site(domain_name):
