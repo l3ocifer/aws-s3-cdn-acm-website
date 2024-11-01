@@ -7,6 +7,7 @@ import subprocess
 import time
 import json
 from botocore.exceptions import ClientError
+import hashlib
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -47,12 +48,46 @@ def deploy_website():
     """Deploy the website to AWS."""
     app_dir = 'next-app'
     source_dir = os.path.join(app_dir, 'out')
-    s3_bucket_name, distribution_id = get_terraform_outputs()
     
-    build_next_app(app_dir)
-    sync_s3_bucket(s3_bucket_name, source_dir)
-    invalidate_cloudfront(distribution_id)
-    logging.info("Website deployed successfully.")
+    try:
+        # Get current site hash before building
+        old_hash = get_site_hash(source_dir) if os.path.exists(source_dir) else None
+        
+        # Build the site
+        build_next_app(app_dir)
+        
+        # Get new site hash
+        new_hash = get_site_hash(source_dir)
+        
+        # Only deploy if hashes differ or old hash doesn't exist
+        if old_hash != new_hash:
+            s3_bucket_name, distribution_id = get_terraform_outputs()
+            sync_s3_bucket(s3_bucket_name, source_dir)
+            invalidate_cloudfront(distribution_id)
+            logging.info("Website deployed successfully with new changes.")
+        else:
+            logging.info("No changes detected in the site content. Skipping deployment.")
+    except Exception as e:
+        logging.error(f"Deployment failed: {str(e)}")
+        raise
+
+def get_site_hash(directory):
+    """Calculate hash of the site contents."""
+    if not os.path.exists(directory):
+        return None
+        
+    file_hashes = {}
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            with open(file_path, 'rb') as f:
+                file_hash = hashlib.md5(f.read()).hexdigest()
+            rel_path = os.path.relpath(file_path, directory)
+            file_hashes[rel_path] = file_hash
+    
+    # Create a deterministic string from the dictionary
+    content_str = json.dumps(file_hashes, sort_keys=True)
+    return hashlib.md5(content_str.encode()).hexdigest()
 
 if __name__ == '__main__':
     deploy_website()
