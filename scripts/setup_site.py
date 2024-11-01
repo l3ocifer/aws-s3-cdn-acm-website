@@ -14,7 +14,7 @@ def check_node_version():
         # First ensure nvm is loaded and the correct version is installed
         setup_cmd = (
             'export NVM_DIR="$HOME/.nvm" && '
-            '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+            '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && '
             'nvm install 18.18.0 > /dev/null 2>&1 && '
             'nvm alias default 18.18.0 > /dev/null 2>&1 && '
             'nvm use default > /dev/null 2>&1 && '

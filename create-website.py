@@ -201,8 +201,9 @@ def main():
     # Get domain name
     last_domain = get_last_domain()
     domain_name = os.getenv('DOMAIN_NAME') or input(f"Enter the domain name (last used: {last_domain}): ") or last_domain
-    if not domain_name:
-        raise ValueError("Domain name must be provided.")
+    if not domain_name or domain_name.isspace():
+        raise ValueError("Domain name cannot be empty or whitespace.")
+    domain_name = domain_name.strip()
     save_last_domain(domain_name)
 
     # Sanitize domain name to create repo name
