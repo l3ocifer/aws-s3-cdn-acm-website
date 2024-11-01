@@ -7,10 +7,29 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Set up Node.js version
+setup_node() {
+    log "Setting up Node.js version..."
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    nvm install 18.18.0 > /dev/null 2>&1
+    nvm alias default 18.18.0 > /dev/null 2>&1
+    nvm use default > /dev/null 2>&1
+    export PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH"
+    hash -r
+    node_version=$(node --version)
+    if [[ "$node_version" != "v18.18.0" ]]; then
+        log "Error: Node.js version mismatch. Got $node_version, expected v18.18.0"
+        exit 1
+    fi
+    log "Using Node.js version: $node_version"
+}
+
 # Build the Next.js app
 build_next_app() {
     log "Building Next.js app..."
     cd next-app
+    npm install
     npm run build
     cd ..
     log "Next.js app built successfully."
@@ -44,6 +63,7 @@ invalidate_cloudfront() {
 # Main function
 update_site() {
     log "Starting website update process..."
+    setup_node
     build_next_app
     get_terraform_outputs
     sync_s3_bucket
