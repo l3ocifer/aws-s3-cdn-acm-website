@@ -17,14 +17,18 @@ def check_node_version():
             '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
             'nvm install 18.18.0 && '
             'nvm alias default 18.18.0 && '
-            'nvm use default'
+            'nvm use default && '
+            'PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH" && '
+            'hash -r && '
+            'node --version'
         )
-        subprocess.run(['bash', '-c', setup_cmd], check=True)
+        node_version = subprocess.check_output(['bash', '-c', setup_cmd], text=True).strip()
         
-        # Verify the version is correct
-        node_version = subprocess.check_output(['bash', '-c', 'source ~/.nvm/nvm.sh && node --version'], text=True).strip()
         if not node_version.startswith('v18.18.0'):
             raise ValueError(f"Node.js version mismatch. Got {node_version}, expected v18.18.0")
+        
+        # Update environment PATH to include the correct Node.js version
+        os.environ['PATH'] = f"{os.path.expanduser('~/.nvm/versions/node/v18.18.0/bin')}:{os.environ.get('PATH', '')}"
         
         logging.info(f"Using Node.js version: {node_version}")
         return True
@@ -42,10 +46,11 @@ def setup_nextjs_app(domain_name):
         logging.info("Next.js app already exists. Skipping creation.")
     else:
         logging.info("Creating Next.js app...")
-        # Use the correct Node.js version from nvm for npx
         create_cmd = (
             'export NVM_DIR="$HOME/.nvm" && '
             '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+            'PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH" && '
+            'hash -r && '
             'npx --yes create-next-app@latest next-app '
             '--typescript --tailwind --eslint --app --src-dir --import-alias @/* --use-npm --yes'
         )
@@ -56,6 +61,8 @@ def setup_nextjs_app(domain_name):
     install_cmd = (
         'export NVM_DIR="$HOME/.nvm" && '
         '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+        'PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH" && '
+        'hash -r && '
         'cd next-app && npm install'
     )
     subprocess.run(['bash', '-c', install_cmd], check=True)
@@ -63,10 +70,11 @@ def setup_nextjs_app(domain_name):
 def build_nextjs_app():
     """Build the Next.js app."""
     logging.info("Building Next.js app...")
-    # Use the correct Node.js version for building
     build_cmd = (
         'export NVM_DIR="$HOME/.nvm" && '
         '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && '
+        'PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH" && '
+        'hash -r && '
         'cd next-app && npm run build'
     )
     subprocess.run(['bash', '-c', build_cmd], check=True)
