@@ -55,6 +55,12 @@ def setup_nextjs_app(domain_name):
             '--typescript --tailwind --eslint --app --src-dir --import-alias @/* --use-npm --yes'
         )
         subprocess.run(['bash', '-c', create_cmd], check=True)
+        
+        # Add Next.js app to git
+        logging.info("Adding Next.js app to git...")
+        subprocess.run(['git', 'add', 'next-app'], check=True)
+        subprocess.run(['git', 'commit', '-m', 'initial next.js app setup'], check=True)
+        subprocess.run(['git', 'push'], check=True)
     
     # Install dependencies using the correct Node.js version
     logging.info("Installing Node.js dependencies...")

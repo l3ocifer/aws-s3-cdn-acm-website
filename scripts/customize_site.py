@@ -3,6 +3,7 @@
 import os
 import logging
 import hashlib
+import subprocess
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -357,6 +358,15 @@ def customize_site(domain_name):
     create_contact_page(app_dir, domain_name)
     update_tailwind_config(app_dir)
     update_next_config(app_dir)
+
+    # Commit customization changes
+    try:
+        subprocess.run(['git', 'add', app_dir], check=True)
+        subprocess.run(['git', 'commit', '-m', 'customize next.js app'], check=True)
+        subprocess.run(['git', 'push'], check=True)
+        logging.info("Site customization changes committed to git.")
+    except subprocess.CalledProcessError as e:
+        logging.warning(f"Failed to commit customization changes: {str(e)}")
 
     logging.info("Site customization complete!")
 

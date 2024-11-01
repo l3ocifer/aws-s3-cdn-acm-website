@@ -75,6 +75,19 @@ update_git() {
     local new_hash=$1
     
     log "Updating git repository..."
+    
+    # Add all Next.js app changes
+    git add next-app/
+    
+    # Only commit if there are changes
+    if ! git diff --cached --quiet; then
+        git commit -m "update next.js app files"
+        git push
+        log "Next.js app changes committed and pushed."
+    else
+        log "No changes to Next.js app files."
+    fi
+    
     echo "$new_hash" > "$hash_file"
     
     if git diff --quiet "$hash_file"; then

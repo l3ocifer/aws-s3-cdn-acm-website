@@ -196,6 +196,15 @@ fabric.properties
 !next-app/package-lock.json
 !next-app/next.config.js
 !next-app/tsconfig.json
+!next-app/tailwind.config.ts
+!next-app/postcss.config.js
+!next-app/app/
+!next-app/.eslintrc.json
+
+# But still ignore Next.js build outputs
+next-app/.next/
+next-app/out/
+next-app/node_modules/
 
 # Python
 __pycache__/
