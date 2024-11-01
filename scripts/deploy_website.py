@@ -43,20 +43,61 @@ def deploy_website():
     """Deploy the website to AWS."""
     app_dir = 'next-app'
     source_dir = os.path.join(app_dir, 'out')
+    hash_file = '.site-hash'
     
     try:
-        # Get current site hash
-        old_hash = get_site_hash(source_dir) if os.path.exists(source_dir) else None
+        s3_bucket_name, distribution_id = get_terraform_outputs()
         
-        # Skip building as it's already done by setup_site
+        # Get new content hash
         new_hash = get_site_hash(source_dir)
+        if not new_hash:
+            raise ValueError("No built site content found in 'next-app/out'")
         
-        # Only deploy if hashes differ or old hash doesn't exist
-        if old_hash != new_hash:
-            s3_bucket_name, distribution_id = get_terraform_outputs()
+        # Always deploy if hash file doesn't exist (first deployment)
+        if not os.path.exists(hash_file):
+            logging.info("First deployment detected. Deploying site...")
             sync_s3_bucket(s3_bucket_name, source_dir)
             invalidate_cloudfront(distribution_id)
-            logging.info("Website deployed successfully with new changes.")
+            
+            # Save new hash
+            with open(hash_file, 'w') as f:
+                f.write(new_hash)
+            
+            # Commit changes to git
+            try:
+                subprocess.run(['git', 'add', hash_file], check=True)
+                subprocess.run(['git', 'commit', '-m', 'update site hash'], check=True)
+                subprocess.run(['git', 'push'], check=True)
+                logging.info("Site hash committed and pushed to repository.")
+            except subprocess.CalledProcessError as e:
+                logging.warning(f"Failed to commit site hash: {str(e)}")
+            
+            logging.info("Website deployed successfully.")
+            return
+        
+        # For subsequent deployments, check for changes
+        with open(hash_file, 'r') as f:
+            old_hash = f.read().strip()
+        
+        if old_hash != new_hash:
+            logging.info("Changes detected. Deploying updates...")
+            sync_s3_bucket(s3_bucket_name, source_dir)
+            invalidate_cloudfront(distribution_id)
+            
+            # Update hash
+            with open(hash_file, 'w') as f:
+                f.write(new_hash)
+            
+            # Commit changes to git
+            try:
+                subprocess.run(['git', 'add', hash_file], check=True)
+                subprocess.run(['git', 'commit', '-m', 'update site hash'], check=True)
+                subprocess.run(['git', 'push'], check=True)
+                logging.info("Site hash committed and pushed to repository.")
+            except subprocess.CalledProcessError as e:
+                logging.warning(f"Failed to commit site hash: {str(e)}")
+            
+            logging.info("Website deployed successfully.")
         else:
             logging.info("No changes detected in the site content. Skipping deployment.")
     except Exception as e:

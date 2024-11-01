@@ -46,6 +46,15 @@ get_terraform_outputs() {
     log "Retrieved CloudFront distribution ID: $CLOUDFRONT_DISTRIBUTION_ID"
 }
 
+# Calculate site hash
+get_site_hash() {
+    local dir="next-app/out"
+    if [ ! -d "$dir" ]; then
+        return 1
+    fi
+    find "$dir" -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1
+}
+
 # Sync S3 bucket
 sync_s3_bucket() {
     log "Syncing files to S3 bucket '$S3_BUCKET_NAME'..."
@@ -60,15 +69,43 @@ invalidate_cloudfront() {
     log "Invalidation '$INVALIDATION_ID' created."
 }
 
+# Update git repository
+update_git() {
+    local hash_file=".site-hash"
+    local new_hash=$1
+    
+    log "Updating git repository..."
+    echo "$new_hash" > "$hash_file"
+    
+    if git diff --quiet "$hash_file"; then
+        log "No changes to site hash."
+        return 0
+    fi
+    
+    git add "$hash_file"
+    git commit -m "update site hash after rebuild"
+    git push
+    log "Git repository updated successfully."
+}
+
 # Main function
 update_site() {
     log "Starting website update process..."
     setup_node
     build_next_app
-    get_terraform_outputs
-    sync_s3_bucket
-    invalidate_cloudfront
-    log "Website updated successfully!"
+    
+    # Get new site hash
+    new_hash=$(get_site_hash)
+    if [ ! -f ".site-hash" ] || [ "$(cat .site-hash)" != "$new_hash" ]; then
+        log "Changes detected. Deploying updates..."
+        get_terraform_outputs
+        sync_s3_bucket
+        invalidate_cloudfront
+        update_git "$new_hash"
+        log "Website updated successfully!"
+    else
+        log "No changes detected. Skipping deployment."
+    fi
 }
 
 # Run the script

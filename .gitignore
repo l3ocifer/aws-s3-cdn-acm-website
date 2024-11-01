@@ -199,3 +199,6 @@ fabric.properties
 
 # Python
 __pycache__/
+
+# Allow site hash file
+!.site-hash
