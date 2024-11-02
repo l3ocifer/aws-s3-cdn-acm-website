@@ -11,7 +11,8 @@ logging.basicConfig(level=logging.INFO)
 def install_python_packages():
     """Install required Python packages using pip."""
     required_packages = [
-        'boto3',
+        'boto3>=1.34.0',  # Latest stable version with CloudFront support
+        'botocore>=1.34.0',
         'requests',
         'python-dotenv'
     ]
