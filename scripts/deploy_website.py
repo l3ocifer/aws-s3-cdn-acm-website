@@ -29,9 +29,10 @@ def invalidate_cloudfront(distribution_id):
         if not aws_profile:
             raise ValueError("AWS_PROFILE environment variable must be set")
         
-        # Initialize boto3 with explicit configuration and retry logic
+        # Initialize boto3 with explicit configuration
         session = boto3.Session(profile_name=aws_profile)
-        config = boto3.Config(
+        from botocore.config import Config
+        config = Config(
             region_name='us-east-1',
             retries=dict(
                 max_attempts=3,
@@ -42,7 +43,6 @@ def invalidate_cloudfront(distribution_id):
         cf = session.client(
             'cloudfront',
             config=config,
-            endpoint_url='https://cloudfront.amazonaws.com',
             region_name='us-east-1'
         )
         
@@ -58,7 +58,6 @@ def invalidate_cloudfront(distribution_id):
         logging.info(f"Invalidation created with ID: {invalidation['Invalidation']['Id']}")
     except Exception as e:
         logging.error(f"Failed to create CloudFront invalidation: {str(e)}")
-        # Add more detailed error information
         logging.error(f"Detailed error: {traceback.format_exc()}")
         raise
 
