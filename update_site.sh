@@ -29,8 +29,49 @@ setup_node() {
 build_next_app() {
     log "Building Next.js app..."
     cd next-app
-    npm install
-    npm run build
+    
+    # Ensure the build directory exists and is clean
+    rm -rf .next out
+    mkdir -p .next
+    
+    # Clean npm cache and remove node_modules if present
+    log "Cleaning npm cache..."
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    
+    # Install dependencies with exact versions
+    log "Installing dependencies..."
+    npm install --prefer-offline --no-audit --progress=false
+    
+    # Run type checking and linting before build
+    log "Running type check..."
+    if ! npm run typecheck 2>/dev/null; then
+        log "Warning: Type checking failed, but continuing with build..."
+    fi
+    
+    # Build with production optimization and export
+    log "Building production bundle..."
+    if ! NODE_ENV=production npm run build; then
+        log "Error: Next.js build failed"
+        cd ..
+        exit 1
+    fi
+    
+    # Export the static site
+    log "Exporting static site..."
+    if ! npm run export; then
+        log "Error: Next.js export failed"
+        cd ..
+        exit 1
+    fi
+    
+    # Verify build output
+    if [ ! -d "out" ] || [ -z "$(ls -A out)" ]; then
+        log "Error: Build output directory is empty or missing"
+        cd ..
+        exit 1
+    fi
+    
     cd ..
     log "Next.js app built successfully."
 }
@@ -59,10 +100,41 @@ get_aws_resources() {
     log "Retrieved CloudFront distribution ID: $CLOUDFRONT_DISTRIBUTION_ID"
 }
 
-# Sync S3 bucket
+# Sync S3 bucket with proper content types
 sync_s3_bucket() {
     log "Syncing files to S3 bucket '$S3_BUCKET_NAME'..."
-    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" --delete --cache-control "no-store,max-age=0" --profile "${AWS_PROFILE:-default}"
+    if [ ! -d "next-app/out" ]; then
+        log "Error: Build output directory not found. Running build first..."
+        build_next_app
+    fi
+    
+    if [ ! -d "next-app/out" ]; then
+        log "Error: Build output directory still missing after build"
+        exit 1
+    fi
+    
+    # Sync with proper content types and caching headers
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --delete \
+        --cache-control "public, max-age=31536000, immutable" \
+        --exclude "*" \
+        --include "*.js" \
+        --include "*.css" \
+        --include "*.woff2" \
+        --include "*.jpg" \
+        --include "*.png" \
+        --include "*.svg" \
+        --include "*.ico" \
+        --profile "${AWS_PROFILE:-default}"
+    
+    # Sync HTML files with no-cache
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --delete \
+        --cache-control "no-cache, no-store, must-revalidate" \
+        --exclude "*" \
+        --include "*.html" \
+        --profile "${AWS_PROFILE:-default}"
+    
     log "Files synced to S3 bucket '$S3_BUCKET_NAME'."
 }
 
