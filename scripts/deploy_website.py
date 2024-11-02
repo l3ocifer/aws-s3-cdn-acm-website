@@ -28,9 +28,13 @@ def invalidate_cloudfront(distribution_id):
         if not aws_profile:
             raise ValueError("AWS_PROFILE environment variable must be set")
         
-        # Initialize boto3 with explicit region
+        # Initialize boto3 with explicit configuration
         session = boto3.Session(profile_name=aws_profile)
-        cf = session.client('cloudfront', region_name='us-east-1')
+        cf = session.client(
+            'cloudfront',
+            region_name='us-east-1',
+            endpoint_url='https://cloudfront.amazonaws.com'
+        )
         
         caller_reference = str(time.time())
         logging.info(f"Creating invalidation for CloudFront distribution '{distribution_id}' using profile '{aws_profile}'...")
