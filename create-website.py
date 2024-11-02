@@ -134,47 +134,47 @@ def save_last_org(org_name):
         f.write(org_name)
 
 def setup_local_repo(repo_name, template_repo_url, org_name=None):
-    """Set up the local repository and add the template as upstream."""
-    repo_owner = org_name if org_name else os.getenv('GITHUB_USERNAME')
-    if not repo_owner:
-        logging.error("GitHub username or organization must be set.")
-        sys.exit(1)
-
-    websites_dir = os.path.expanduser('~/git/websites')
-    repo_path = os.path.join(websites_dir, repo_name)
-
-    # Remove existing repo directory if it exists
-    if os.path.exists(repo_path):
-        shutil.rmtree(repo_path)
-
-    # Clone the repository (this will work for both existing and newly created repos)
-    subprocess.run(['git', 'clone', f'git@github.com:{repo_owner}/{repo_name}.git', repo_path], check=True)
-    os.chdir(repo_path)
-
-    # Add template repository as upstream
-    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], check=True)
-
-    # Fetch template content
-    subprocess.run(['git', 'fetch', 'upstream-template'], check=True)
-
-    # Check if the local repository is empty
-    result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True)
-    if result.returncode != 0:
-        # If the repository is empty, create an initial commit on master branch
-        subprocess.run(['git', 'checkout', '-b', 'master'], check=True)
-        subprocess.run(['git', 'commit', '--allow-empty', '-m', "Initial commit"], check=True)
-
-    # Merge template content into the master branch
-    subprocess.run(['git', 'merge', 'upstream-template/master', '--allow-unrelated-histories', '-m', "Merge template into master"], check=True)
-
-    # Push changes to the repository
-    subprocess.run(['git', 'push', '-u', 'origin', 'master'], check=True)
-
-    # Log current remotes
-    result = subprocess.run(['git', 'remote', '-v'], capture_output=True, text=True, check=True)
-    logging.info(f"Current remotes:\n{result.stdout}")
-
-    logging.info(f"Successfully set up local repository for '{repo_name}' at '{repo_path}'.")
+    """Clone template repository and set up remotes."""
+    repo_dir = os.path.expanduser(f'~/git/websites/{repo_name}')
+    os.makedirs(repo_dir, exist_ok=True)
+    
+    # Initialize new repository
+    subprocess.run(['git', 'init'], cwd=repo_dir, check=True)
+    
+    # Add template repository as upstream remote
+    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], cwd=repo_dir, check=True)
+    
+    # Fetch template repository
+    subprocess.run(['git', 'fetch', 'upstream-template'], cwd=repo_dir, check=True)
+    
+    # Create and checkout master branch
+    subprocess.run(['git', 'checkout', '-b', 'master'], cwd=repo_dir, check=True)
+    
+    try:
+        # Attempt merge with conflict resolution strategy
+        subprocess.run([
+            'git', 'merge', 'upstream-template/master',
+            '--allow-unrelated-histories',
+            '-X', 'ours',
+            '-m', "Merge template into master"
+        ], cwd=repo_dir, check=True)
+    except subprocess.CalledProcessError:
+        # If merge fails, abort and try alternative approach
+        subprocess.run(['git', 'merge', '--abort'], cwd=repo_dir)
+        
+        # Copy template files directly
+        subprocess.run(['git', 'checkout', 'upstream-template/master', '.'], cwd=repo_dir, check=True)
+        subprocess.run(['git', 'add', '.'], cwd=repo_dir, check=True)
+        subprocess.run(['git', 'commit', '-m', "Initial commit from template"], cwd=repo_dir, check=True)
+    
+    # Set up origin remote
+    if org_name:
+        origin_url = f'git@github.com:{org_name}/{repo_name}.git'
+    else:
+        origin_url = f'git@github.com:l3ocifer/{repo_name}.git'
+    
+    subprocess.run(['git', 'remote', 'add', 'origin', origin_url], cwd=repo_dir, check=True)
+    subprocess.run(['git', 'push', '-u', 'origin', 'master'], cwd=repo_dir, check=True)
 
 def get_terraform_variable(var_name):
     try:
