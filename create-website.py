@@ -142,30 +142,23 @@ def setup_local_repo(repo_name, template_repo_url, org_name=None):
     subprocess.run(['git', 'init'], cwd=repo_dir, check=True)
     
     # Add template repository as upstream remote
-    subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], cwd=repo_dir, check=True)
+    try:
+        subprocess.run(['git', 'remote', 'add', 'upstream-template', template_repo_url], cwd=repo_dir, check=True)
+    except subprocess.CalledProcessError:
+        # If remote exists, update its URL
+        subprocess.run(['git', 'remote', 'set-url', 'upstream-template', template_repo_url], cwd=repo_dir, check=True)
     
     # Fetch template repository
     subprocess.run(['git', 'fetch', 'upstream-template'], cwd=repo_dir, check=True)
     
-    # Create and checkout master branch
-    subprocess.run(['git', 'checkout', '-b', 'master'], cwd=repo_dir, check=True)
-    
     try:
-        # Attempt merge with conflict resolution strategy
-        subprocess.run([
-            'git', 'merge', 'upstream-template/master',
-            '--allow-unrelated-histories',
-            '-X', 'ours',
-            '-m', "Merge template into master"
-        ], cwd=repo_dir, check=True)
-    except subprocess.CalledProcessError:
-        # If merge fails, abort and try alternative approach
-        subprocess.run(['git', 'merge', '--abort'], cwd=repo_dir)
-        
-        # Copy template files directly
+        # Try direct checkout first
         subprocess.run(['git', 'checkout', 'upstream-template/master', '.'], cwd=repo_dir, check=True)
         subprocess.run(['git', 'add', '.'], cwd=repo_dir, check=True)
         subprocess.run(['git', 'commit', '-m', "Initial commit from template"], cwd=repo_dir, check=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to set up repository: {str(e)}")
+        raise
     
     # Set up origin remote
     if org_name:
@@ -173,7 +166,12 @@ def setup_local_repo(repo_name, template_repo_url, org_name=None):
     else:
         origin_url = f'git@github.com:l3ocifer/{repo_name}.git'
     
-    subprocess.run(['git', 'remote', 'add', 'origin', origin_url], cwd=repo_dir, check=True)
+    try:
+        subprocess.run(['git', 'remote', 'add', 'origin', origin_url], cwd=repo_dir, check=True)
+    except subprocess.CalledProcessError:
+        # If remote exists, update its URL
+        subprocess.run(['git', 'remote', 'set-url', 'origin', origin_url], cwd=repo_dir, check=True)
+    
     subprocess.run(['git', 'push', '-u', 'origin', 'master'], cwd=repo_dir, check=True)
 
 def get_terraform_variable(var_name):
