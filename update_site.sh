@@ -34,14 +34,9 @@ build_next_app() {
     rm -rf .next out
     mkdir -p .next
     
-    # Clean npm cache and remove node_modules if present
-    log "Cleaning npm cache..."
-    npm cache clean --force
-    rm -rf node_modules package-lock.json
-    
     # Install dependencies with exact versions
     log "Installing dependencies..."
-    npm install --prefer-offline --no-audit --progress=false
+    npm ci --prefer-offline --no-audit --progress=false
     
     # Run type checking and linting before build
     log "Running type check..."
@@ -49,7 +44,7 @@ build_next_app() {
         log "Warning: Type checking failed, but continuing with build..."
     fi
     
-    # Build with production optimization and export
+    # Build with production optimization (includes static export)
     log "Building production bundle..."
     if ! NODE_ENV=production npm run build; then
         log "Error: Next.js build failed"
@@ -57,19 +52,26 @@ build_next_app() {
         exit 1
     fi
     
-    # Export the static site
-    log "Exporting static site..."
-    if ! npm run export; then
-        log "Error: Next.js export failed"
-        cd ..
-        exit 1
+    # Wait briefly for file system
+    sleep 1
+    
+    # Copy .next/static to out/_next/static if needed
+    if [ -d ".next/static" ] && [ ! -d "out/_next/static" ]; then
+        mkdir -p out/_next
+        cp -r .next/static out/_next/
     fi
     
     # Verify build output
     if [ ! -d "out" ] || [ -z "$(ls -A out)" ]; then
-        log "Error: Build output directory is empty or missing"
-        cd ..
-        exit 1
+        log "Error: Build output directory is empty or missing. Checking .next directory..."
+        if [ -d ".next" ] && [ ! -z "$(ls -A .next)" ]; then
+            log "Found build in .next directory, copying to out..."
+            cp -r .next/* out/
+        else
+            log "Error: No build output found"
+            cd ..
+            exit 1
+        fi
     fi
     
     cd ..
