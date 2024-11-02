@@ -138,8 +138,12 @@ def setup_local_repo(repo_name, template_repo_url, org_name=None):
     repo_dir = os.path.expanduser(f'~/git/websites/{repo_name}')
     os.makedirs(repo_dir, exist_ok=True)
     
-    # Initialize new repository
-    subprocess.run(['git', 'init'], cwd=repo_dir, check=True)
+    # Initialize new repository if not already initialized
+    if not os.path.exists(os.path.join(repo_dir, '.git')):
+        subprocess.run(['git', 'init'], cwd=repo_dir, check=True)
+        is_new_repo = True
+    else:
+        is_new_repo = False
     
     # Add template repository as upstream remote
     try:
@@ -151,14 +155,16 @@ def setup_local_repo(repo_name, template_repo_url, org_name=None):
     # Fetch template repository
     subprocess.run(['git', 'fetch', 'upstream-template'], cwd=repo_dir, check=True)
     
-    try:
-        # Try direct checkout first
-        subprocess.run(['git', 'checkout', 'upstream-template/master', '.'], cwd=repo_dir, check=True)
-        subprocess.run(['git', 'add', '.'], cwd=repo_dir, check=True)
-        subprocess.run(['git', 'commit', '-m', "Initial commit from template"], cwd=repo_dir, check=True)
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to set up repository: {str(e)}")
-        raise
+    # Only perform initial setup for new repositories
+    if is_new_repo:
+        try:
+            # Checkout template content
+            subprocess.run(['git', 'checkout', 'upstream-template/master', '.'], cwd=repo_dir, check=True)
+            subprocess.run(['git', 'add', '.'], cwd=repo_dir, check=True)
+            subprocess.run(['git', 'commit', '-m', "Initial commit from template"], cwd=repo_dir, check=True)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to set up repository: {str(e)}")
+            raise
     
     # Set up origin remote
     if org_name:
@@ -172,7 +178,8 @@ def setup_local_repo(repo_name, template_repo_url, org_name=None):
         # If remote exists, update its URL
         subprocess.run(['git', 'remote', 'set-url', 'origin', origin_url], cwd=repo_dir, check=True)
     
-    subprocess.run(['git', 'push', '-u', 'origin', 'master'], cwd=repo_dir, check=True)
+    if is_new_repo:
+        subprocess.run(['git', 'push', '-u', 'origin', 'master'], cwd=repo_dir, check=True)
 
 def get_terraform_variable(var_name):
     try:
