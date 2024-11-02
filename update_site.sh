@@ -52,9 +52,28 @@ build_next_app() {
         exit 1
     fi
     
+    # Copy build output to out directory
+    if [ -d ".next/standalone" ]; then
+        cp -r .next/standalone/* out/
+    elif [ -d ".next" ]; then
+        mkdir -p out
+        cp -r .next/* out/
+    fi
+    
+    # Copy static assets
+    if [ -d ".next/static" ]; then
+        mkdir -p out/_next
+        cp -r .next/static out/_next/
+    fi
+    
+    # Copy public directory if it exists
+    if [ -d "public" ]; then
+        cp -r public/* out/
+    fi
+    
     # Verify build output
     if [ ! -d "out" ] || [ -z "$(ls -A out)" ]; then
-        log "Error: Build output directory is empty or missing"
+        log "Error: Build output directory is empty or missing after copy"
         cd ..
         exit 1
     fi
