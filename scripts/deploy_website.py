@@ -31,6 +31,10 @@ def invalidate_cloudfront(distribution_id):
         
         # Initialize boto3 with explicit configuration
         session = boto3.Session(profile_name=aws_profile)
+        
+        # Force loading of endpoints data before client creation
+        session._session.get_component('data_loader').load_data('endpoints')
+        
         from botocore.config import Config
         config = Config(
             region_name='us-east-1',
