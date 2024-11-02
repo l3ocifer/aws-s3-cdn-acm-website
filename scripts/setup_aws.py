@@ -35,9 +35,9 @@ def setup_aws_credentials():
         logging.error(f"Failed to authenticate with AWS using profile {aws_profile}. Error: {str(e)}")
         sys.exit(1)
 
-def get_registered_nameservers(domain_name):
+def get_registered_nameservers(domain_name, session):
     """Get the registered nameservers for a domain."""
-    client = boto3.client('route53domains')
+    client = session.client('route53domains')
     try:
         response = client.get_domain_detail(DomainName=domain_name)
         return sorted([ns['Name'] for ns in response['Nameservers']])
@@ -45,9 +45,9 @@ def get_registered_nameservers(domain_name):
         logging.error(f"Error getting registered nameservers: {str(e)}")
         return []
 
-def get_hosted_zone_nameservers(hosted_zone_id):
+def get_hosted_zone_nameservers(hosted_zone_id, session):
     """Get the nameservers for a hosted zone."""
-    client = boto3.client('route53')
+    client = session.client('route53')
     try:
         response = client.get_hosted_zone(Id=hosted_zone_id)
         return sorted(response['DelegationSet']['NameServers'])
@@ -55,9 +55,9 @@ def get_hosted_zone_nameservers(hosted_zone_id):
         logging.error(f"Error getting hosted zone nameservers: {str(e)}")
         return []
 
-def check_pending_operations(domain_name):
+def check_pending_operations(domain_name, session):
     """Check and wait for pending operations on a domain."""
-    client = boto3.client('route53domains')
+    client = session.client('route53domains')
     try:
         response = client.list_operations(
             SubmittedSince=datetime.now() - timedelta(days=30)
@@ -73,15 +73,15 @@ def check_pending_operations(domain_name):
     except ClientError as e:
         logging.error(f"Error checking pending operations: {str(e)}")
 
-def update_registered_nameservers(domain_name, hosted_zone_nameservers):
+def update_registered_nameservers(domain_name, hosted_zone_nameservers, session):
     """Update the registered nameservers for a domain."""
-    client = boto3.client('route53domains')
+    client = session.client('route53domains')
     max_retries = 5
     retry_delay = 30
 
     for attempt in range(max_retries):
         try:
-            check_pending_operations(domain_name)
+            check_pending_operations(domain_name, session)
             client.update_domain_nameservers(
                 DomainName=domain_name,
                 Nameservers=[{'Name': ns} for ns in hosted_zone_nameservers]
@@ -117,12 +117,12 @@ def create_or_get_hosted_zone(session, domain_name):
             logging.info(f"Created new hosted zone for {domain_name}")
 
         # Compare and update nameservers if necessary
-        registered_ns = get_registered_nameservers(domain_name)
-        hosted_zone_ns = get_hosted_zone_nameservers(hosted_zone_id)
+        registered_ns = get_registered_nameservers(domain_name, session)
+        hosted_zone_ns = get_hosted_zone_nameservers(hosted_zone_id, session)
 
         if set(registered_ns) != set(hosted_zone_ns):
             logging.info("Nameservers mismatch detected. Updating registered nameservers...")
-            if update_registered_nameservers(domain_name, hosted_zone_ns):
+            if update_registered_nameservers(domain_name, hosted_zone_ns, session):
                 logging.info("Nameservers updated successfully.")
             else:
                 logging.warning("Failed to update nameservers. Manual intervention may be required.")
