@@ -30,7 +30,7 @@ build_next_app() {
     log "Building Next.js app..."
     cd next-app
     npm install
-    npm run build
+    NEXT_PUBLIC_BASE_PATH="" npm run build
     cd ..
     log "Next.js app built successfully."
 }
@@ -50,42 +50,34 @@ get_terraform_outputs() {
 sync_s3_bucket() {
     log "Syncing files to S3 bucket '$S3_BUCKET_NAME'..."
     
-    # HTML files - no cache
+    # Sync all files with appropriate cache headers
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
         --delete \
+        --cache-control "public, max-age=0, must-revalidate" \
+        --content-type "text/html; charset=utf-8" \
         --exclude "*" \
-        --include "*.html" \
-        --cache-control "no-cache,no-store,must-revalidate"
-    
-    # Static assets - long cache
+        --include "*.html"
+
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --cache-control "public, max-age=31536000, immutable" \
+        --exclude "*" \
+        --include "_next/*"
+
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --cache-control "public, max-age=31536000, immutable" \
         --exclude "*" \
         --include "*.js" \
         --include "*.css" \
+        --include "*.json" \
+        --include "*.ico" \
+        --include "*.png" \
         --include "*.jpg" \
         --include "*.jpeg" \
-        --include "*.png" \
-        --include "*.gif" \
-        --include "*.ico" \
         --include "*.svg" \
+        --include "*.webp" \
         --include "*.woff" \
         --include "*.woff2" \
-        --cache-control "public,max-age=31536000,immutable"
-    
-    # Other files - moderate cache
-    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
-        --exclude "*.html" \
-        --exclude "*.js" \
-        --exclude "*.css" \
-        --exclude "*.jpg" \
-        --exclude "*.jpeg" \
-        --exclude "*.png" \
-        --exclude "*.gif" \
-        --exclude "*.ico" \
-        --exclude "*.svg" \
-        --exclude "*.woff" \
-        --exclude "*.woff2" \
-        --cache-control "public,max-age=3600"
+        --include "*.ttf"
         
     log "Files synced to S3 bucket '$S3_BUCKET_NAME'."
 }
