@@ -35,25 +35,23 @@ build_next_app() {
     log "Next.js app built successfully."
 }
 
-# Get Terraform outputs
-get_terraform_outputs() {
-    log "Retrieving Terraform outputs..."
-    if [ ! -d "terraform" ]; then
-        log "Error: terraform directory not found"
-        exit 1
-    fi
+# Get AWS resources
+get_aws_resources() {
+    log "Retrieving AWS resources..."
     
-    cd terraform
-    # Initialize terraform to get state from S3 backend
-    terraform init -reconfigure > /dev/null 2>&1
+    # Get domain name from current directory name
+    DOMAIN_NAME=$(basename $(pwd) | sed 's/_com$/.com/')
     
-    # Get outputs
-    S3_BUCKET_NAME=$(terraform output -raw website_bucket_name 2>/dev/null)
-    CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null)
-    cd ..
+    # Get S3 bucket (specifically the website bucket)
+    S3_BUCKET_NAME=$(aws s3 ls --profile "${AWS_PROFILE:-default}" | grep "$DOMAIN_NAME" | grep "website" | awk '{print $3}')
+    
+    # Get CloudFront distribution
+    CLOUDFRONT_DISTRIBUTION_ID=$(aws cloudfront list-distributions --profile "${AWS_PROFILE:-default}" --query "DistributionList.Items[?Aliases.Items[?contains(@,'${DOMAIN_NAME}')]].Id" --output text)
     
     if [ -z "$S3_BUCKET_NAME" ] || [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
-        log "Error: Failed to retrieve required Terraform outputs"
+        log "Error: Failed to retrieve required AWS resources"
+        log "S3 Bucket: $S3_BUCKET_NAME"
+        log "CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID"
         exit 1
     fi
     
@@ -89,7 +87,7 @@ update_site() {
     log "Starting website update process..."
     setup_node
     build_next_app
-    get_terraform_outputs
+    get_aws_resources
     sync_s3_bucket
     invalidate_cloudfront
     update_git
