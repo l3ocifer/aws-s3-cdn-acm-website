@@ -52,26 +52,11 @@ build_next_app() {
         exit 1
     fi
     
-    # Wait briefly for file system
-    sleep 1
-    
-    # Copy .next/static to out/_next/static if needed
-    if [ -d ".next/static" ] && [ ! -d "out/_next/static" ]; then
-        mkdir -p out/_next
-        cp -r .next/static out/_next/
-    fi
-    
     # Verify build output
     if [ ! -d "out" ] || [ -z "$(ls -A out)" ]; then
-        log "Error: Build output directory is empty or missing. Checking .next directory..."
-        if [ -d ".next" ] && [ ! -z "$(ls -A .next)" ]; then
-            log "Found build in .next directory, copying to out..."
-            cp -r .next/* out/
-        else
-            log "Error: No build output found"
-            cd ..
-            exit 1
-        fi
+        log "Error: Build output directory is empty or missing"
+        cd ..
+        exit 1
     fi
     
     cd ..
@@ -115,11 +100,12 @@ sync_s3_bucket() {
         exit 1
     fi
     
-    # Sync with proper content types and caching headers
+    # First sync: Static assets with long cache
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
         --delete \
         --cache-control "public, max-age=31536000, immutable" \
         --exclude "*" \
+        --include "_next/*" \
         --include "*.js" \
         --include "*.css" \
         --include "*.woff2" \
@@ -127,14 +113,40 @@ sync_s3_bucket() {
         --include "*.png" \
         --include "*.svg" \
         --include "*.ico" \
+        --content-type "application/javascript:*.js" \
+        --content-type "text/css:*.css" \
+        --content-type "font/woff2:*.woff2" \
+        --content-type "image/jpeg:*.jpg" \
+        --content-type "image/png:*.png" \
+        --content-type "image/svg+xml:*.svg" \
+        --content-type "image/x-icon:*.ico" \
+        --acl public-read \
         --profile "${AWS_PROFILE:-default}"
     
-    # Sync HTML files with no-cache
+    # Second sync: HTML files with no-cache
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
         --delete \
         --cache-control "no-cache, no-store, must-revalidate" \
         --exclude "*" \
         --include "*.html" \
+        --content-type "text/html" \
+        --acl public-read \
+        --profile "${AWS_PROFILE:-default}"
+    
+    # Third sync: Root files and directories
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --delete \
+        --cache-control "no-cache, no-store, must-revalidate" \
+        --exclude "_next/*" \
+        --exclude "*.html" \
+        --exclude "*.js" \
+        --exclude "*.css" \
+        --exclude "*.woff2" \
+        --exclude "*.jpg" \
+        --exclude "*.png" \
+        --exclude "*.svg" \
+        --exclude "*.ico" \
+        --acl public-read \
         --profile "${AWS_PROFILE:-default}"
     
     log "Files synced to S3 bucket '$S3_BUCKET_NAME'."
