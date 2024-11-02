@@ -7,28 +7,12 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
-# Set up Node.js version
-setup_node() {
-    log "Setting up Node.js version..."
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    nvm install 18.18.0 > /dev/null 2>&1
-    nvm alias default 18.18.0 > /dev/null 2>&1
-    nvm use default > /dev/null 2>&1
-    export PATH="$NVM_DIR/versions/node/v18.18.0/bin:$PATH"
-    hash -r
-    node_version=$(node --version)
-    if [[ "$node_version" != "v18.18.0" ]]; then
-        log "Error: Node.js version mismatch. Got $node_version, expected v18.18.0"
-        exit 1
-    fi
-    log "Using Node.js version: $node_version"
-}
-
 # Build the Next.js app
 build_next_app() {
     log "Building Next.js app..."
     cd next-app
+    rm -rf .next
+    rm -rf out
     npm install
     NEXT_PUBLIC_BASE_PATH="" npm run build
     cd ..
@@ -50,55 +34,98 @@ get_terraform_outputs() {
 sync_s3_bucket() {
     log "Syncing files to S3 bucket '$S3_BUCKET_NAME'..."
     
-    # Sync all files with appropriate cache headers
+    # HTML files
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
         --delete \
+        --size-only \
+        --metadata-directive REPLACE \
         --cache-control "public, max-age=0, must-revalidate" \
-        --content-type "text/html; charset=utf-8" \
-        --exclude "*" \
-        --include "*.html"
+        --exclude "_next/*" \
+        --exclude "*.js" \
+        --exclude "*.css" \
+        --exclude "*.json" \
+        --exclude "*.xml" \
+        --exclude "*.txt" \
+        --exclude "*.ico" \
+        --exclude "*.jpg" \
+        --exclude "*.jpeg" \
+        --exclude "*.png" \
+        --exclude "*.gif" \
+        --exclude "*.svg" \
+        --exclude "*.woff" \
+        --exclude "*.woff2" \
+        --exclude "*.ttf" \
+        --content-type "text/html; charset=utf-8"
 
-    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
-        --cache-control "public, max-age=31536000, immutable" \
-        --exclude "*" \
-        --include "_next/*"
+    # Next.js static files
+    aws s3 sync next-app/out/_next "s3://$S3_BUCKET_NAME/_next" \
+        --size-only \
+        --metadata-directive REPLACE \
+        --cache-control "public, max-age=31536000, immutable"
 
+    # JavaScript files
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --size-only \
+        --metadata-directive REPLACE \
         --cache-control "public, max-age=31536000, immutable" \
         --exclude "*" \
         --include "*.js" \
+        --content-type "application/javascript"
+
+    # CSS files
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --size-only \
+        --metadata-directive REPLACE \
+        --cache-control "public, max-age=31536000, immutable" \
+        --exclude "*" \
         --include "*.css" \
-        --include "*.json" \
-        --include "*.ico" \
-        --include "*.png" \
-        --include "*.jpg" \
-        --include "*.jpeg" \
-        --include "*.svg" \
-        --include "*.webp" \
-        --include "*.woff" \
-        --include "*.woff2" \
-        --include "*.ttf"
-        
+        --content-type "text/css"
+
+    # Images and other static assets
+    aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
+        --size-only \
+        --metadata-directive REPLACE \
+        --cache-control "public, max-age=31536000, immutable" \
+        --exclude "*" \
+        --include "*.ico" --content-type "image/x-icon" \
+        --include "*.jpg" --content-type "image/jpeg" \
+        --include "*.jpeg" --content-type "image/jpeg" \
+        --include "*.png" --content-type "image/png" \
+        --include "*.gif" --content-type "image/gif" \
+        --include "*.svg" --content-type "image/svg+xml" \
+        --include "*.woff" --content-type "font/woff" \
+        --include "*.woff2" --content-type "font/woff2" \
+        --include "*.ttf" --content-type "font/ttf"
+
     log "Files synced to S3 bucket '$S3_BUCKET_NAME'."
 }
 
 # Invalidate CloudFront distribution
 invalidate_cloudfront() {
     log "Creating invalidation for CloudFront distribution '$CLOUDFRONT_DISTRIBUTION_ID'..."
-    INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*" --query 'Invalidation.Id' --output text)
-    log "Invalidation '$INVALIDATION_ID' created."
+    INVALIDATION_ID=$(aws cloudfront create-invalidation \
+        --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+        --paths "/*" \
+        --query 'Invalidation.Id' \
+        --output text)
+    log "Invalidation created with ID: $INVALIDATION_ID"
+    
+    # Wait for invalidation to complete
+    aws cloudfront wait invalidation-completed \
+        --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+        --id "$INVALIDATION_ID"
+    log "Invalidation completed successfully."
 }
 
 # Main function
-update_site() {
+main() {
     log "Starting website update process..."
-    setup_node
     build_next_app
     get_terraform_outputs
     sync_s3_bucket
     invalidate_cloudfront
-    log "Website updated successfully!"
+    log "Website update completed successfully!"
 }
 
 # Run the script
-update_site
+main
