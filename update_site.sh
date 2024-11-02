@@ -38,13 +38,18 @@ build_next_app() {
 # Get Terraform outputs
 get_terraform_outputs() {
     log "Retrieving Terraform outputs..."
-    cd terraform
-    if [ ! -f terraform.tfstate ]; then
-        log "Error: terraform.tfstate not found. Please ensure Terraform has been initialized and applied."
+    if [ ! -d "terraform" ]; then
+        log "Error: terraform directory not found"
         exit 1
     fi
-    S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
-    CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+    
+    cd terraform
+    # Initialize terraform to get state from S3 backend
+    terraform init -reconfigure > /dev/null 2>&1
+    
+    # Get outputs
+    S3_BUCKET_NAME=$(terraform output -raw website_bucket_name 2>/dev/null)
+    CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null)
     cd ..
     
     if [ -z "$S3_BUCKET_NAME" ] || [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
