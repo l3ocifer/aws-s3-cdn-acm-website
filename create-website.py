@@ -19,12 +19,26 @@ def create_venv():
     if not os.path.exists(venv_path):
         logging.info(f"Creating virtual environment at {venv_path}")
         try:
-            venv.create(venv_path, with_pip=True)
-            # Ensure pip is installed and updated
-            subprocess.run([os.path.join(venv_path, 'bin', 'python'), '-m', 'ensurepip', '--upgrade'], check=True)
-            subprocess.run([os.path.join(venv_path, 'bin', 'pip'), 'install', '--upgrade', 'pip'], check=True)
+            # Create venv without pip first
+            venv.create(venv_path, with_pip=False)
+            
+            # Get the Python executable path in the new venv
+            if sys.platform == 'win32':
+                python_path = os.path.join(venv_path, 'Scripts', 'python.exe')
+            else:
+                python_path = os.path.join(venv_path, 'bin', 'python')
+            
+            # Install pip using get-pip.py
+            subprocess.run(['curl', 'https://bootstrap.pypa.io/get-pip.py', '-o', 'get-pip.py'], check=True)
+            subprocess.run([python_path, 'get-pip.py'], check=True)
+            os.remove('get-pip.py')
+            
+            # Update pip to latest version
+            subprocess.run([os.path.join(os.path.dirname(python_path), 'pip'), 'install', '--upgrade', 'pip'], check=True)
         except Exception as e:
             logging.error(f"Failed to create virtual environment: {str(e)}")
+            if os.path.exists(venv_path):
+                shutil.rmtree(venv_path)
             raise
     return venv_path
 
