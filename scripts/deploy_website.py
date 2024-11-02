@@ -8,6 +8,7 @@ import time
 import json
 from botocore.exceptions import ClientError
 import hashlib
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -28,12 +29,21 @@ def invalidate_cloudfront(distribution_id):
         if not aws_profile:
             raise ValueError("AWS_PROFILE environment variable must be set")
         
-        # Initialize boto3 with explicit configuration
+        # Initialize boto3 with explicit configuration and retry logic
         session = boto3.Session(profile_name=aws_profile)
+        config = boto3.Config(
+            region_name='us-east-1',
+            retries=dict(
+                max_attempts=3,
+                mode='standard'
+            )
+        )
+        
         cf = session.client(
             'cloudfront',
-            region_name='us-east-1',
-            endpoint_url='https://cloudfront.amazonaws.com'
+            config=config,
+            endpoint_url='https://cloudfront.amazonaws.com',
+            region_name='us-east-1'
         )
         
         caller_reference = str(time.time())
@@ -48,6 +58,8 @@ def invalidate_cloudfront(distribution_id):
         logging.info(f"Invalidation created with ID: {invalidation['Invalidation']['Id']}")
     except Exception as e:
         logging.error(f"Failed to create CloudFront invalidation: {str(e)}")
+        # Add more detailed error information
+        logging.error(f"Detailed error: {traceback.format_exc()}")
         raise
 
 def get_terraform_outputs():
