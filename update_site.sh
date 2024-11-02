@@ -123,7 +123,6 @@ sync_s3_bucket() {
     aws s3 sync next-app/out "s3://$S3_BUCKET_NAME" \
         --delete \
         --cache-control "public, max-age=31536000, immutable" \
-        --exclude "*" \
         --include "_next/*" \
         --include "*.js" \
         --include "*.css" \
@@ -139,7 +138,6 @@ sync_s3_bucket() {
         --content-type "image/png:*.png" \
         --content-type "image/svg+xml:*.svg" \
         --content-type "image/x-icon:*.ico" \
-        --acl public-read \
         --profile "${AWS_PROFILE:-default}"
     
     # Second sync: HTML files with no-cache
@@ -149,7 +147,6 @@ sync_s3_bucket() {
         --exclude "*" \
         --include "*.html" \
         --content-type "text/html" \
-        --acl public-read \
         --profile "${AWS_PROFILE:-default}"
     
     # Third sync: Root files and directories
@@ -165,7 +162,6 @@ sync_s3_bucket() {
         --exclude "*.png" \
         --exclude "*.svg" \
         --exclude "*.ico" \
-        --acl public-read \
         --profile "${AWS_PROFILE:-default}"
     
     log "Files synced to S3 bucket '$S3_BUCKET_NAME'."
