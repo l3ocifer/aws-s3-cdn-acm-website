@@ -206,6 +206,27 @@ next-app/.next/
 next-app/out/
 next-app/node_modules/
 
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+debug/
+release/
+
+# Leptos specific
+dist/
+pkg/
+wasm-pack.log
+.cargo-ok
+
+# Allow Leptos app files
+!leptos-app/
+!leptos-app/src/
+!leptos-app/public/
+!leptos-app/Cargo.toml
+!leptos-app/index.html
+!leptos-app/style.css
+
 # Python
 __pycache__/
 
